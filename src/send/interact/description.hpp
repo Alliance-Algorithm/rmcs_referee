@@ -1,53 +1,8 @@
 #pragma once
 
-#include "protocol/protocol.hpp"
-#include "protocol/send.hpp"
-
-#include <cstring>
+#include "send/interact/package.hpp"
 
 namespace referee::ui {
-
-using namespace referee::package;
-using namespace referee::package::send;
-
-using Description = interact::ui::Description;
-
-using DeletePackage = Package<interact::Data<interact::ui::DeleteLayer>>;
-using DrawPackage1  = Package<interact::Data<interact::ui::Description>>;
-using DrawPackage2  = Package<interact::Data<interact::ui::Description2>>;
-using DrawPackage5  = Package<interact::Data<interact::ui::Description5>>;
-using DrawPackage7  = Package<interact::Data<interact::ui::Description7>>;
-using StringPackage = Package<interact::Data<interact::ui::String>>;
-
-enum class ShapeEnum {
-    LINE,
-    RECTANGLE,
-    CIRCLE,
-    ELLIPSE,
-    ARC,
-    FLOAT,
-    INTEGER,
-    STRING
-};
-
-enum class ColorEnum {
-    SELF,
-    YELLOW,
-    GREEN,
-    ORANGE,
-    PURPLE_RED,
-    PINK,
-    BLUE,
-    BLACK,
-    WHITE
-};
-enum class OperationEnum {
-    EMPTY,
-    ADD,
-    MODIFY,
-    DELETE
-};
-
 class BasicDescription {
 public:
     BasicDescription() = default;
@@ -67,7 +22,7 @@ public:
         description.width     = width;
         description.start_x   = x;
         description.start_y   = y;
-        (void)description.graphic;
+        (void)description.shape;
         (void)description.details_a;
         (void)description.details_b;
         (void)description.details_c;
@@ -98,7 +53,7 @@ public:
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::LINE);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::LINE);
         description.details_d = this->end_x;
         description.details_e = this->end_y;
 
@@ -116,7 +71,7 @@ public:
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::RECTANGLE);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::RECTANGLE);
         description.details_d = this->other_x;
         description.details_e = this->other_y;
 
@@ -134,7 +89,7 @@ public:
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::CIRCLE);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::CIRCLE);
         description.details_c = radius;
 
         return description;
@@ -150,7 +105,7 @@ public:
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::ELLIPSE);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::ELLIPSE);
         description.details_d = radius_x;
         description.details_e = radius_y;
 
@@ -168,7 +123,7 @@ public:
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::ARC);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::ARC);
         description.details_d = radius_x;
         description.details_e = radius_y;
 
@@ -182,13 +137,13 @@ public:
     uint16_t radius_y;
 };
 
-class FLoat : public BasicDescription {
+class Float : public BasicDescription {
 public:
     Description generate_description() override
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::FLOAT);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::FLOAT);
         description.details_a = font_size;
         description.details_c = va_dot_lue >> 22;
         description.details_d = va_dot_lue >> 11;
@@ -208,7 +163,7 @@ public:
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::INTEGER);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::INTEGER);
         description.details_a = font_size;
         description.details_c = value >> 00;
         description.details_d = value >> 11;
@@ -228,7 +183,7 @@ public:
     {
         auto description = generate_basic_description();
 
-        description.graphic   = static_cast<uint8_t>(ShapeEnum::STRING);
+        description.shape     = static_cast<uint8_t>(ShapeEnum::STRING);
         description.details_a = font_size;
         description.details_b = length;
 

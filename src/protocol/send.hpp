@@ -44,16 +44,16 @@ namespace interact {
     namespace chat {
     }
 
-    /// @brief data for sentry
+    /// @brief decision for sentry
     /// @note data length equals 4
     /// @note id 0x0120
     namespace sentry {
     }
 
-    /// @brief data for lidar
+    /// @brief decision for radar
     /// @note data length equals 1
     /// @note id 0x0121
-    namespace lidar {
+    namespace radar {
     }
 
     /// @brief data for ui
@@ -69,7 +69,7 @@ namespace interact {
         struct __attribute__((packed)) Description {
             uint8_t name[3];
             uint32_t operation : 3;
-            uint32_t graphic   : 3;
+            uint32_t shape     : 3;
             uint32_t layer     : 4;
             uint32_t color     : 4;
             uint32_t details_a : 9;

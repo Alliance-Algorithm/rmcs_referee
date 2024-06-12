@@ -1,28 +1,16 @@
 #pragma once
 
 #include "protocol/dji_crc.hpp"
-#include "send/channel/interact/graphic.hpp"
-
-#include <serial/serial.h>
+#include "send/interact/package.hpp"
 
 #include <array>
-#include <cassert>
-#include <string>
 
-namespace referee {
-
-class BasicInterface {
-
+namespace referee::executor {
+class Packer {
 public:
-    BasicInterface(const std::string& port, uint32_t baudrate)
-        : serial_(port, baudrate)
-    {
-    }
+    Packer() = default;
 
-public:
-    // operations
-    // ui
-    void draw_string(const ui::Description& description, const std::string& string)
+    ui::StringPackage pack_string(const ui::Description& description, const std::string& string)
     {
         auto package                  = ui::StringPackage();
         package.header.length         = sizeof(package.data);
@@ -37,10 +25,10 @@ public:
         serial_util::dji_crc::append_crc8(package.header);
         serial_util::dji_crc::append_crc16(package);
 
-        write(reinterpret_cast<uint8_t*>(&package), sizeof(package));
+        return package;
     }
 
-    void delete_layer(int index)
+    ui::DeletePackage pack_delete_layer(int index)
     {
         auto package                  = ui::DeletePackage();
         package.header.length         = sizeof(package.data);
@@ -55,10 +43,10 @@ public:
         serial_util::dji_crc::append_crc8(package.header);
         serial_util::dji_crc::append_crc16(package);
 
-        write(reinterpret_cast<uint8_t*>(&package), sizeof(package));
+        return package;
     }
 
-    void delete_layer()
+    ui::DeletePackage pack_delete_layer()
     {
         auto package                  = ui::DeletePackage();
         package.header.length         = sizeof(package.data);
@@ -72,10 +60,10 @@ public:
         serial_util::dji_crc::append_crc8(package.header);
         serial_util::dji_crc::append_crc16(package);
 
-        write(reinterpret_cast<uint8_t*>(&package), sizeof(package));
+        return package;
     }
 
-    void apply_description(const ui::Description& description)
+    ui::DrawPackage1 pack_shape(const ui::Description& description)
     {
         auto package            = ui::DrawPackage1();
         package.header.length   = sizeof(package.data);
@@ -89,12 +77,12 @@ public:
         serial_util::dji_crc::append_crc8(package.header);
         serial_util::dji_crc::append_crc16(package);
 
-        write(reinterpret_cast<uint8_t*>(&package), sizeof(package));
+        return package;
     }
 
     template <size_t n>
     requires(n == 2 || n == 5 || n == 7)
-    void apply_description(const std::array<ui::Description, n>& description)
+    decltype(auto) pack_shapes(const std::array<ui::Description, n>& description)
     {
         if constexpr (n == 2) {
             auto package            = ui::DrawPackage2();
@@ -112,7 +100,7 @@ public:
             serial_util::dji_crc::append_crc8(package.header);
             serial_util::dji_crc::append_crc16(package);
 
-            write(reinterpret_cast<uint8_t*>(&package), sizeof(package));
+            return package;
 
         } else if constexpr (n == 5) {
             auto package            = ui::DrawPackage5();
@@ -130,7 +118,7 @@ public:
             serial_util::dji_crc::append_crc8(package.header);
             serial_util::dji_crc::append_crc16(package);
 
-            write(reinterpret_cast<uint8_t*>(&package), sizeof(package));
+            return package;
 
         } else if constexpr (n == 7) {
             auto package            = ui::DrawPackage7();
@@ -148,7 +136,7 @@ public:
             serial_util::dji_crc::append_crc8(package.header);
             serial_util::dji_crc::append_crc16(package);
 
-            write(reinterpret_cast<uint8_t*>(&package), sizeof(package));
+            return package;
         }
     }
 
@@ -169,7 +157,7 @@ private:
     {
         std::printf("\n");
         std::printf("%-20s%-20zu\n", "size ", sizeof(package));
-        std::printf("%-20s%-#20x\n", "headr.start ", package.header.start);
+        std::printf("%-20s%-#20x\n", "header.start ", package.header.start);
         std::printf("%-20s%-20d\n", "header.length ", package.header.length);
         std::printf("%-20s%-20d\n", "header.sequence ", package.header.sequence);
         std::printf("%-20s%-20d\n", "header.crc8 ", package.header.crc8);
@@ -180,7 +168,7 @@ private:
         std::printf("%-20s%-#20x\n", "data.receiver ", package.data.receiver);
         std::printf("%-20s%-20.3s\n", "data.data.name ", package.data.data.name);
         std::printf("%-20s%-20d\n", "data.data.operate ", package.data.data.operation);
-        std::printf("%-20s%-20d\n", "data.data.graphic ", package.data.data.graphic);
+        std::printf("%-20s%-20d\n", "data.data.graphic ", package.data.data.shape);
         std::printf("%-20s%-20d\n", "data.data.layer ", package.data.data.layer);
         std::printf("%-20s%-20d\n", "data.data.color ", package.data.data.color);
         std::printf("%-20s%-20d\n", "data.data.width ", package.data.data.width);
@@ -188,16 +176,9 @@ private:
         std::printf("%-20s%-20d\n", "data.data.start_y ", package.data.data.start_y);
     }
 
-    size_t write(const uint8_t* data, size_t size)
-    {
-        return serial_.write(data, size);
-    };
-
 private:
-    serial::Serial serial_;
-
     uint16_t sender_  = 0;
     uint16_t client_  = 0;
     uint8_t sequence_ = 0;
 };
-} // namespace referee
+} // namespace referee::executor

@@ -3,15 +3,23 @@
 #include <memory>
 
 namespace referee {
-class Updater {
+
+class Collector final {
 public:
-    Updater(const std::string& port, uint32_t baudrate);
-    ~Updater();
+    Collector();
+    ~Collector();
 
 private:
     class Impl;
     std::unique_ptr<Impl> pimpl;
 };
 
-inline auto updater = Updater { "", 115200 };
+class Channel {
+public:
+    Channel();
+
+private:
+    uint8_t hz_ = 0;
+};
+
 } // namespace referee
