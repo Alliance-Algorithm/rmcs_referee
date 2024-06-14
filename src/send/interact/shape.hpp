@@ -2,10 +2,25 @@
 
 #include "send/interact/package.hpp"
 
+#include <cassert>
+#include <cstring>
+#include <string>
+
 namespace referee::ui {
-class BasicDescription {
+class Shape {
 public:
-    BasicDescription() = default;
+    OperationEnum operation;
+    ColorEnum color;
+    uint8_t name[3];
+    uint8_t layer;
+    uint16_t width;
+    uint16_t x;
+    uint16_t y;
+
+    std::string string;
+
+public:
+    Shape() = default;
 
     virtual Description generate_description() = 0;
 
@@ -20,8 +35,8 @@ public:
         description.layer     = layer;
         description.color     = static_cast<uint32_t>(color);
         description.width     = width;
-        description.start_x   = x;
-        description.start_y   = y;
+        description.x_start   = x;
+        description.y_start   = y;
         (void)description.shape;
         (void)description.details_a;
         (void)description.details_b;
@@ -36,54 +51,45 @@ public:
     {
         std::strncpy(reinterpret_cast<char*>(name), str, sizeof(name));
     }
-
-public:
-    OperationEnum operation;
-    ColorEnum color;
-    uint8_t name[3];
-    uint8_t layer;
-    uint16_t width;
-    uint16_t x;
-    uint16_t y;
 };
 
-class Line : public BasicDescription {
+class Line : public Shape {
 public:
     Description generate_description() override
     {
         auto description = generate_basic_description();
 
         description.shape     = static_cast<uint8_t>(ShapeEnum::LINE);
-        description.details_d = this->end_x;
-        description.details_e = this->end_y;
+        description.details_d = this->x_end;
+        description.details_e = this->y_end;
 
         return description;
     }
 
 public:
-    uint16_t end_x;
-    uint16_t end_y;
+    uint16_t x_end;
+    uint16_t y_end;
 };
 
-class Rectangle : public BasicDescription {
+class Rectangle : public Shape {
 public:
     Description generate_description() override
     {
         auto description = generate_basic_description();
 
         description.shape     = static_cast<uint8_t>(ShapeEnum::RECTANGLE);
-        description.details_d = this->other_x;
-        description.details_e = this->other_y;
+        description.details_d = this->x_end;
+        description.details_e = this->y_end;
 
         return description;
     }
 
 public:
-    uint16_t other_x;
-    uint16_t other_y;
+    uint16_t x_end;
+    uint16_t y_end;
 };
 
-class Circle : public BasicDescription {
+class Circle : public Shape {
 public:
     Description generate_description() override
     {
@@ -99,7 +105,7 @@ public:
     uint16_t radius;
 };
 
-class Ellipse : public BasicDescription {
+class Ellipse : public Shape {
 public:
     Description generate_description() override
     {
@@ -117,7 +123,7 @@ public:
     uint16_t radius_y;
 };
 
-class Arc : public BasicDescription {
+class Arc : public Shape {
 public:
     Description generate_description() override
     {
@@ -137,7 +143,7 @@ public:
     uint16_t radius_y;
 };
 
-class Float : public BasicDescription {
+class Float : public Shape {
 public:
     Description generate_description() override
     {
@@ -157,7 +163,7 @@ public:
     uint32_t va_dot_lue;
 };
 
-class Integer : public BasicDescription {
+class Integer : public Shape {
 public:
     Description generate_description() override
     {
@@ -177,7 +183,7 @@ public:
     int32_t value;
 };
 
-class String : public BasicDescription {
+class String : public Shape {
 public:
     Description generate_description() override
     {

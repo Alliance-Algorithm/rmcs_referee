@@ -1,12 +1,6 @@
 #pragma once
 
 #include "protocol/protocol.hpp"
-#include "protocol/send.hpp"
-
-#include <serial/serial.h>
-
-#include <cassert>
-#include <cstring>
 
 namespace referee::ui {
 
@@ -52,7 +46,3 @@ enum class OperationEnum {
 };
 
 } // namespace referee::ui
-
-namespace referee {
-
-} // namespace referee

@@ -4,6 +4,8 @@
 #include "send/interact/package.hpp"
 
 #include <array>
+#include <cstdio>
+#include <string>
 
 namespace referee::executor {
 class Packer {
@@ -63,7 +65,8 @@ public:
         return package;
     }
 
-    ui::DrawPackage1 pack_shape(const ui::Description& description)
+    ui::DrawPackage1 pack_shape(
+        const ui::Description& description)
     {
         auto package            = ui::DrawPackage1();
         package.header.length   = sizeof(package.data);
@@ -80,64 +83,83 @@ public:
         return package;
     }
 
-    template <size_t n>
-    requires(n == 2 || n == 5 || n == 7)
-    decltype(auto) pack_shapes(const std::array<ui::Description, n>& description)
+    ui::DrawPackage2 pack_shape(
+        const ui::Description& description_0,
+        const ui::Description& description_1)
     {
-        if constexpr (n == 2) {
-            auto package            = ui::DrawPackage2();
-            package.header.length   = sizeof(package.data);
-            package.header.sequence = sequence_++;
-            package.command         = 0x0301;
-            package.data.command    = 0x0102;
-            package.data.sender     = sender_;
-            package.data.receiver   = client_;
+        auto package            = ui::DrawPackage2();
+        package.header.length   = sizeof(package.data);
+        package.header.sequence = sequence_++;
+        package.command         = 0x0301;
+        package.data.command    = 0x0102;
+        package.data.sender     = sender_;
+        package.data.receiver   = client_;
 
-            for (int i = 0; i < n; i++) {
-                package.data.data.description[i] = description[i];
-            }
+        package.data.data.description[0] = description_0;
+        package.data.data.description[1] = description_1;
 
-            serial_util::dji_crc::append_crc8(package.header);
-            serial_util::dji_crc::append_crc16(package);
+        serial_util::dji_crc::append_crc8(package.header);
+        serial_util::dji_crc::append_crc16(package);
 
-            return package;
+        return package;
+    }
 
-        } else if constexpr (n == 5) {
-            auto package            = ui::DrawPackage5();
-            package.header.length   = sizeof(package.data);
-            package.header.sequence = sequence_++;
-            package.command         = 0x0301;
-            package.data.command    = 0x0103;
-            package.data.sender     = sender_;
-            package.data.receiver   = client_;
+    ui::DrawPackage5 pack_shape(
+        const ui::Description& description_0,
+        const ui::Description& description_1,
+        const ui::Description& description_2,
+        const ui::Description& description_3,
+        const ui::Description& description_4)
+    {
+        auto package            = ui::DrawPackage5();
+        package.header.length   = sizeof(package.data);
+        package.header.sequence = sequence_++;
+        package.command         = 0x0301;
+        package.data.command    = 0x0103;
+        package.data.sender     = sender_;
+        package.data.receiver   = client_;
 
-            for (int i = 0; i < n; i++) {
-                package.data.data.description[i] = description[i];
-            }
+        package.data.data.description[0] = description_0;
+        package.data.data.description[1] = description_1;
+        package.data.data.description[2] = description_2;
+        package.data.data.description[3] = description_3;
+        package.data.data.description[4] = description_4;
 
-            serial_util::dji_crc::append_crc8(package.header);
-            serial_util::dji_crc::append_crc16(package);
+        serial_util::dji_crc::append_crc8(package.header);
+        serial_util::dji_crc::append_crc16(package);
 
-            return package;
+        return package;
+    }
 
-        } else if constexpr (n == 7) {
-            auto package            = ui::DrawPackage7();
-            package.header.length   = sizeof(package.data);
-            package.header.sequence = sequence_++;
-            package.command         = 0x0301;
-            package.data.command    = 0x0104;
-            package.data.sender     = sender_;
-            package.data.receiver   = client_;
+    ui::DrawPackage7 pack_shape(
+        const ui::Description& description_0,
+        const ui::Description& description_1,
+        const ui::Description& description_2,
+        const ui::Description& description_3,
+        const ui::Description& description_4,
+        const ui::Description& description_5,
+        const ui::Description& description_6)
+    {
+        auto package            = ui::DrawPackage7();
+        package.header.length   = sizeof(package.data);
+        package.header.sequence = sequence_++;
+        package.command         = 0x0301;
+        package.data.command    = 0x0104;
+        package.data.sender     = sender_;
+        package.data.receiver   = client_;
 
-            for (int i = 0; i < n; i++) {
-                package.data.data.description[i] = description[i];
-            }
+        package.data.data.description[0] = description_0;
+        package.data.data.description[1] = description_1;
+        package.data.data.description[2] = description_2;
+        package.data.data.description[3] = description_3;
+        package.data.data.description[4] = description_4;
+        package.data.data.description[4] = description_5;
+        package.data.data.description[4] = description_6;
 
-            serial_util::dji_crc::append_crc8(package.header);
-            serial_util::dji_crc::append_crc16(package);
+        serial_util::dji_crc::append_crc8(package.header);
+        serial_util::dji_crc::append_crc16(package);
 
-            return package;
-        }
+        return package;
     }
 
     // config
@@ -172,8 +194,8 @@ private:
         std::printf("%-20s%-20d\n", "data.data.layer ", package.data.data.layer);
         std::printf("%-20s%-20d\n", "data.data.color ", package.data.data.color);
         std::printf("%-20s%-20d\n", "data.data.width ", package.data.data.width);
-        std::printf("%-20s%-20d\n", "data.data.start_x ", package.data.data.start_x);
-        std::printf("%-20s%-20d\n", "data.data.start_y ", package.data.data.start_y);
+        std::printf("%-20s%-20d\n", "data.data.start_x ", package.data.data.x_start);
+        std::printf("%-20s%-20d\n", "data.data.start_y ", package.data.data.y_start);
     }
 
 private:
