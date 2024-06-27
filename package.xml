@@ -1,13 +1,24 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>referee_interface</name>
+  <name>rmcs_referee</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="cqq1960180796@163.com">developer</maintainer>
+  <maintainer email="zihanqin2048@gmail.com">Qzh</maintainer>
+  <maintainer email="cqq1960180796@163.com">Cqq</maintainer>
   <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>pluginlib</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>serial</depend>
+  <depend>serial_util</depend>
+  <depend>rmcs_executor</depend>
+  <depend>rmcs_description</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

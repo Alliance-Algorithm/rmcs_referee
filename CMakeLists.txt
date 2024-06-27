@@ -1,33 +1,30 @@
-cmake_minimum_required(VERSION 3.10)
-project(referee_interface)
-
-set(CMAKE_BUILD_TYPE "Debug")
+cmake_minimum_required(VERSION 3.12)
+project(rmcs_referee)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_EXTENSIONS OFF)
-add_compile_options(-std=c++20)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
 
-set(PACKAGES ament_cmake rclcpp serial)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-O2 -Wall -Wextra -Wpedantic)
+endif()
 
-aux_source_directory(src/package PROJECT_SOURCE)
+find_package (ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies ()
 
-# find package
-foreach(package ${PACKAGES})
-  find_package(${package} REQUIRED)
-  if(${package}_FOUND)
-    message("found package: ${package}")
-  endif()
-endforeach()
+file (GLOB_RECURSE PROJECT_SOURCE CONFIGURE_DEPENDS
+  ${PROJECT_SOURCE_DIR}/src/*.cpp
+  ${PROJECT_SOURCE_DIR}/src/*.c
+)
 
-include_directories(${PACKAGES}_INCLUDE_DIR src)
+ament_auto_add_library (
+  ${PROJECT_NAME} SHARED
+  ${PROJECT_SOURCE}
+)
 
-# executable for test
-add_executable(${PROJECT_NAME}_test ${PROJECT_SOURCE} src/main.cpp)
-ament_target_dependencies(${PROJECT_NAME}_test ${PACKAGES})
-target_link_libraries(${PROJECT_NAME}_test ${CUSTOM_MESSAGE})
-install(TARGETS ${PROJECT_NAME}_test DESTINATION lib/${PROJECT_NAME})
+include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/src)
 
-# generate ament index for other package
-ament_package()
+pluginlib_export_plugin_description_file(rmcs_executor plugins.xml)
+
+ament_auto_package()

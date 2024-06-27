@@ -1,0 +1,17 @@
+<library path="rmcs_referee">
+  <class type="rmcs_referee::Status" base_class_type="rmcs_executor::Component">
+    <description>Test plugin.</description>
+  </class>
+  <class type="rmcs_referee::Command" base_class_type="rmcs_executor::Component">
+    <description>Test plugin.</description>
+  </class>
+  <class type="rmcs_referee::command::Interaction" base_class_type="rmcs_executor::Component">
+    <description>Test plugin.</description>
+  </class>
+  <class type="rmcs_referee::command::interaction::Ui" base_class_type="rmcs_executor::Component">
+    <description>Test plugin.</description>
+  </class>
+  <class type="rmcs_referee::app::ui::Infantry" base_class_type="rmcs_executor::Component">
+    <description>Test plugin.</description>
+  </class>
+</library>
