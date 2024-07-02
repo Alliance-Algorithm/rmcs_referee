@@ -29,6 +29,8 @@ public:
         register_output("/referee/robot/shooter/cooling", robot_shooter_cooling_, 0);
         register_output("/referee/robot/shooter/heat_limit", robot_shooter_heat_limit_, 0);
         register_output("/referee/robot/chassis_power", robot_chassis_power_, 0.0);
+        register_output("/referee/robot/chassis_power_limit", robot_chassis_power_limit_, 45.0);
+        register_output("/referee/robot/buffer_energy", robot_buffer_energy_, 60.0);
     }
 
     void update() override {
@@ -93,13 +95,15 @@ private:
     void update_robot_status() {
         auto& data = reinterpret_cast<RobotStatus&>(frame_.body.data);
 
-        *robot_shooter_cooling_    = data.shooter_barrel_cooling_value;
-        *robot_shooter_heat_limit_ = static_cast<int64_t>(1000) * data.shooter_barrel_heat_limit;
+        *robot_shooter_cooling_     = data.shooter_barrel_cooling_value;
+        *robot_shooter_heat_limit_  = static_cast<int64_t>(1000) * data.shooter_barrel_heat_limit;
+        *robot_chassis_power_limit_ = static_cast<double>(data.chassis_power_limit);
     }
 
     void update_power_heat_data() {
         auto& data            = reinterpret_cast<PowerHeatData&>(frame_.body.data);
         *robot_chassis_power_ = data.chassis_power;
+        *robot_buffer_energy_ = static_cast<double>(data.buffer_energy);
     }
 
     void update_robot_position() {}
@@ -119,7 +123,8 @@ private:
     size_t cache_size_ = 0;
 
     OutputInterface<int64_t> robot_shooter_cooling_, robot_shooter_heat_limit_;
-    OutputInterface<double> robot_chassis_power_;
+    OutputInterface<double> robot_chassis_power_, robot_chassis_power_limit_;
+    OutputInterface<double> robot_buffer_energy_;
 };
 
 } // namespace rmcs_referee

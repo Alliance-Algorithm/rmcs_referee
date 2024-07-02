@@ -22,7 +22,7 @@ public:
         , map_marker_next_sent_(std::chrono::steady_clock::time_point::min())
         , text_display_next_sent_(std::chrono::steady_clock::time_point::min()) {
 
-        register_input("/referee/serial", serial_);
+        register_input("/referee/serial", serial_, false);
 
         register_input("/referee/command/interaction", interaction_field_, false);
         register_input("/referee/command/map_marker", map_marker_field_, false);
@@ -39,6 +39,9 @@ public:
     }
 
     void update() override {
+        if (!serial_.ready())
+            return;
+
         using namespace std::chrono_literals;
         auto now     = std::chrono::steady_clock::now();
         auto& serial = const_cast<serial::Serial&>(*serial_);
@@ -49,7 +52,7 @@ public:
         constexpr auto one_second = std::chrono::steady_clock::duration(1s);
         size_t data_length;
         if (now >= interaction_next_sent_ && !interaction_field_->empty()) {
-            interaction_next_sent_ = now + (one_second / 28); // 25hz max to reduce packet loss
+            interaction_next_sent_ = now + (one_second / 25); // 25hz max to reduce packet loss
             frame_.body.command_id = 0x0301;
             data_length            = interaction_field_->write(frame_.body.data);
         } else if (now >= map_marker_next_sent_ && !map_marker_field_->empty()) {
