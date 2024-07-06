@@ -19,7 +19,7 @@ namespace app::ui {
 
 class Shape
     : private CfsScheduler<Shape>::Entity
-    , private RemoteShape<Shape>::SwappableDescriptor {
+    , private RemoteShape<Shape>::Descriptor {
 public:
     friend class CfsScheduler<Shape>;
     friend class RemoteShape<Shape>;
@@ -83,8 +83,6 @@ public:
         part2_.y = y;
         set_modified();
     }
-
-    void re_draw() { set_modified(); }
 
     bool is_text_shape() const { return is_text_shape_; }
 
@@ -180,13 +178,23 @@ private:
         CfsScheduler<Shape>::Entity::enter_run_queue(weighted_priority);
     }
 
-    void after_swapped() {
-        // Called by RemoteShape<Shape>::SwappableDescriptor
-        // Leave run_queue when remote shape was swapped.
-        leave_run_queue();
+    void id_revoked() {
+        // This is a callback indicating that the remote id that this shape once had
+        // is no longer associated with it.
+        // Called by RemoteShape<Shape>::Descriptor.
+        if (visible_) {
+            // Re-enter the update queue to try to get a new id.
+            set_modified();
+        } else {
+            // Leave run_queue when shape was hidden.
+            leave_run_queue();
+        }
     }
 
     command::Field update() {
+        // This is a callback indicating that the shape is being updated.
+        // Called by CfsScheduler<Shape>.
+
         if (!has_id() && !try_assign_id()) {
             // TODO: Print error message.
             sync_confidence_ = max_update_times;

@@ -609,7 +609,7 @@ public:
     };
 
     bool insert(T& node) requires(std::is_base_of_v<Node, T>) {
-        if (!static_cast<Node&>(node).is_dangling()) [[unlikely]]
+        if (!static_cast<Node&>(node).is_dangling())
             return false;
 
         BasicRedBlackTree::Node **link = &(tree_.root), *parent = nullptr;
@@ -632,7 +632,7 @@ public:
     }
 
     bool insert_set(T& node) requires(std::is_base_of_v<Node, T>) {
-        if (!static_cast<Node&>(node).is_dangling()) [[unlikely]]
+        if (!static_cast<Node&>(node).is_dangling())
             return false;
 
         BasicRedBlackTree::Node **link = &(tree_.root), *parent = nullptr;
@@ -657,7 +657,7 @@ public:
     }
 
     bool erase(T& node) requires(std::is_base_of_v<Node, T>) {
-        if (static_cast<Node&>(node).is_dangling()) [[unlikely]]
+        if (static_cast<Node&>(node).is_dangling())
             return false;
 
         tree_.erase(static_cast<Node*>(&node));
