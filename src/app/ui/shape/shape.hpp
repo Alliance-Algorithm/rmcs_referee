@@ -118,7 +118,7 @@ public:
     constexpr static inline command::Field no_operation_description() {
         return command::Field{[](std::byte* buffer) {
             auto& description                = *new (buffer) DescriptionField{};
-            description.part1.operation_type = static_cast<uint8_t>(Operation::NO_OPERATION);
+            description.part1.operation_type = Operation::NO_OPERATION;
             return sizeof(DescriptionField);
         }};
     }
@@ -136,15 +136,26 @@ public:
     };
 
 protected:
+    enum class ShapeType : uint8_t {
+        LINE      = 0,
+        RECTANGLE = 1,
+        CIRCLE    = 2,
+        ELLIPSE   = 3,
+        ARC       = 4,
+        FLOAT     = 5,
+        INTEGER   = 6,
+        TEXT      = 7,
+    };
+
     struct DescriptionField {
         uint8_t name[3];
         struct __attribute__((packed)) Part1 {
-            uint8_t operation_type : 3;
-            uint8_t shape_type     : 3;
-            uint8_t layer          : 4;
-            uint8_t color          : 4;
-            uint16_t details_a     : 9;
-            uint16_t details_b     : 9;
+            Operation operation_type : 3;
+            ShapeType shape_type     : 3;
+            uint8_t layer            : 4;
+            Color color              : 4;
+            uint16_t details_a       : 9;
+            uint16_t details_b       : 9;
         } part1;
         struct __attribute__((packed)) Part2 {
             uint16_t width : 10;
@@ -251,7 +262,7 @@ private:
         // We only use layer 0
         description.part1.layer = 0;
 
-        description.part1.operation_type = static_cast<uint8_t>(operation);
+        description.part1.operation_type = operation;
 
         return written;
     }
@@ -305,8 +316,8 @@ protected:
     size_t write_description_field(std::byte* buffer) override {
         auto& description = *new (buffer) DescriptionField{};
 
-        description.part1.color      = static_cast<uint8_t>(part3_.color);
-        description.part1.shape_type = 0; // Line
+        description.part1.shape_type = ShapeType::LINE;
+        description.part1.color      = part3_.color;
 
         description.part2 = part2_;
 
@@ -371,8 +382,8 @@ protected:
     size_t write_description_field(std::byte* buffer) override {
         auto& description = *new (buffer) DescriptionField{};
 
-        description.part1.color      = static_cast<uint8_t>(part3_.color);
-        description.part1.shape_type = 3; // Only use type ellipse
+        description.part1.shape_type = ShapeType::ELLIPSE;
+        description.part1.color      = part3_.color;
 
         description.part2 = part2_;
 
@@ -381,7 +392,6 @@ protected:
         return sizeof(DescriptionField);
     }
 
-private:
     struct __attribute__((packed)) {
         Color color         : 8;
         uint8_t placeholder : 2;
@@ -431,8 +441,8 @@ protected:
     size_t write_description_field(std::byte* buffer) override {
         auto& description = *new (buffer) DescriptionField{};
 
-        description.part1.color      = static_cast<uint8_t>(part3_.color);
-        description.part1.shape_type = 1; // Rectangle
+        description.part1.shape_type = ShapeType::RECTANGLE;
+        description.part1.color      = part3_.color;
 
         description.part2 = part2_;
 
@@ -441,7 +451,6 @@ protected:
         return sizeof(DescriptionField);
     }
 
-private:
     struct __attribute__((packed)) {
         Color color         : 8;
         uint8_t placeholder : 2;
@@ -453,43 +462,43 @@ private:
 
 class Arc : public Shape {
 public:
-    Arc() { part1_.shape_type = 4; };
+    Arc() = default;
     Arc(Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t angle_start,
         uint16_t angle_end, uint16_t rx, uint16_t ry)
         : Arc() {
-        part1_.color     = static_cast<uint8_t>(color);
-        part1_.details_a = angle_start;
-        part1_.details_b = angle_end;
+        angle_start_ = angle_start;
+        angle_end_   = angle_end;
 
         part2_.width = width;
         part2_.x     = x;
         part2_.y     = y;
 
-        part3_.rx = rx;
-        part3_.ry = ry;
+        part3_.color = color;
+        part3_.rx    = rx;
+        part3_.ry    = ry;
     }
 
-    Color color() const { return static_cast<Color>(part1_.color); }
+    Color color() const { return part3_.color; }
     void set_color(Color color) {
-        if (part1_.color == static_cast<uint8_t>(color))
+        if (part3_.color == color)
             return;
-        part1_.color = static_cast<uint8_t>(color);
+        part3_.color = color;
         set_modified();
     }
 
-    uint16_t angle_start() const { return part1_.details_a; }
+    uint16_t angle_start() const { return angle_start_; }
     void set_angle_start(uint16_t angle_start) {
-        if (part1_.details_a == angle_start)
+        if (angle_start_ == angle_start)
             return;
-        part1_.details_a = angle_start;
+        angle_start_ = angle_start;
         set_modified();
     }
 
-    uint16_t angle_end() const { return part1_.details_b; }
+    uint16_t angle_end() const { return angle_end_; }
     void set_angle_end(uint16_t angle_end) {
-        if (part1_.details_b == angle_end)
+        if (angle_end_ == angle_end)
             return;
-        part1_.details_b = angle_end;
+        angle_end_ = angle_end;
         set_modified();
     }
 
@@ -509,11 +518,19 @@ public:
         set_modified();
     }
 
+    void set_r(uint16_t r) {
+        set_rx(r);
+        set_ry(r);
+    }
+
 protected:
     size_t write_description_field(std::byte* buffer) override {
         auto& description = *new (buffer) DescriptionField{};
 
-        description.part1 = part1_;
+        description.part1.shape_type = ShapeType::ARC;
+        description.part1.color      = part3_.color;
+        description.part1.details_a  = angle_start_;
+        description.part1.details_b  = angle_end_;
 
         description.part2 = part2_;
 
@@ -522,111 +539,53 @@ protected:
         return sizeof(DescriptionField);
     }
 
-private:
-    DescriptionField::Part1 part1_;
+    uint16_t angle_start_, angle_end_;
+
     struct __attribute__((packed)) {
-        uint16_t placeholder : 10;
+        Color color         : 8;
+        uint8_t placeholder : 2;
 
         uint16_t rx : 11;
         uint16_t ry : 11;
     } part3_ alignas(4);
 };
 
-class Float : public Shape {
-public:
-    Float() { part1_.shape_type = 5; };
-    Float(Color color, uint16_t width, uint16_t x, uint16_t y, int32_t value, uint16_t font_size)
-        : Float() {
-        part1_.color     = static_cast<uint8_t>(color);
-        part1_.details_a = font_size;
-
-        part2_.width = width;
-        part2_.x     = x;
-        part2_.y     = y;
-
-        part3_.value = value;
-    }
-
-    Color color() const { return static_cast<Color>(part1_.color); }
-    void set_color(Color color) {
-        if (part1_.color == static_cast<uint8_t>(color))
-            return;
-        part1_.color = static_cast<uint8_t>(color);
-        set_modified();
-    }
-
-    int32_t value() const { return part3_.value; }
-    void set_value(int32_t value) {
-        if (part3_.value == value)
-            return;
-        part3_.value = value;
-        set_modified();
-    }
-
-    uint16_t font_size() const { return part1_.details_a; }
-    void set_font_size(uint16_t font_size) {
-        if (part1_.details_a == font_size)
-            return;
-        part1_.details_a = font_size;
-        set_modified();
-    }
-
-protected:
-    size_t write_description_field(std::byte* buffer) override {
-        auto& description = *new (buffer) DescriptionField{};
-
-        description.part1 = part1_;
-
-        description.part2 = part2_;
-
-        description.part3 = std::bit_cast<DescriptionField::Part3>(part3_);
-
-        return sizeof(DescriptionField);
-    }
-
-private:
-    DescriptionField::Part1 part1_;
-    struct __attribute__((packed)) {
-        int32_t value : 32; // float = value / 1000
-    } part3_ alignas(4);
-};
-
 class Integer : public Shape {
 public:
-    Integer() { part1_.shape_type = 6; };
-    Integer(Color color, uint16_t width, uint16_t x, uint16_t y, int32_t value, uint16_t font_size)
+    Integer() = default;
+    Integer(Color color, uint16_t font_size, uint16_t width, uint16_t x, uint16_t y, int32_t value)
         : Integer() {
-        part1_.color     = static_cast<uint8_t>(color);
-        part1_.details_a = font_size;
+        color_     = color;
+        font_size_ = font_size;
 
         part2_.width = width;
         part2_.x     = x;
         part2_.y     = y;
 
-        part3_.value = value;
+        value_ = value;
     }
 
-    Color color() const { return static_cast<Color>(part1_.color); }
+    Color color() const { return color_; }
     void set_color(Color color) {
-        if (part1_.color == static_cast<uint8_t>(color))
+        if (color_ == color)
             return;
-        part1_.color = static_cast<uint8_t>(color);
+        color_ = color;
         set_modified();
     }
 
-    int32_t value() const { return part3_.value; }
+    int32_t value() const { return value_; }
     void set_value(int32_t value) {
-        if (part3_.value == value)
+        if (value_ == value)
             return;
-        part3_.value = value;
+        value_ = value;
         set_modified();
     }
 
-    uint16_t font_size() const { return part1_.details_a; }
+    uint16_t font_size() const { return font_size_; }
     void set_font_size(uint16_t font_size) {
-        if (part1_.details_a == font_size)
+        if (font_size_ == font_size)
             return;
-        part1_.details_a = font_size;
+        font_size_ = font_size;
         set_modified();
     }
 
@@ -634,58 +593,77 @@ protected:
     size_t write_description_field(std::byte* buffer) override {
         auto& description = *new (buffer) DescriptionField{};
 
-        description.part1 = part1_;
+        description.part1.shape_type = ShapeType::INTEGER;
+        description.part1.color      = color_;
+        description.part1.details_a  = font_size_;
 
         description.part2 = part2_;
 
-        description.part3 = std::bit_cast<DescriptionField::Part3>(part3_);
+        description.part3 = std::bit_cast<DescriptionField::Part3>(value_);
 
         return sizeof(DescriptionField);
     }
 
-private:
-    DescriptionField::Part1 part1_;
-    struct __attribute__((packed)) {
-        int32_t value : 32;
-    } part3_ alignas(4);
+    uint16_t font_size_;
+    Color color_;
+    int32_t value_;
 };
 
-class String : public Shape {
+class Float : public Integer {
+    using Integer::Integer;
+
+protected:
+    size_t write_description_field(std::byte* buffer) override {
+        auto& description = *new (buffer) DescriptionField{};
+
+        description.part1.shape_type = ShapeType::FLOAT;
+        description.part1.color      = color_;
+        description.part1.details_a  = font_size_;
+
+        description.part2 = part2_;
+
+        description.part3 = std::bit_cast<DescriptionField::Part3>(value_);
+
+        return sizeof(DescriptionField);
+    }
+};
+
+class Text : public Shape {
 public:
-    String() { part1_.shape_type = 7; };
-    String(Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t font_size)
-        : String() {
-        part1_.color     = static_cast<uint8_t>(color);
-        part1_.details_a = font_size;
+    Text() { value_ = nullptr; };
+    Text(Color color, uint16_t font_size, uint16_t width, uint16_t x, uint16_t y, const char* value)
+        : Text() {
+        color_     = color;
+        font_size_ = font_size;
 
         part2_.width = width;
         part2_.x     = x;
         part2_.y     = y;
+
+        value_ = value;
     }
 
-    Color color() const { return static_cast<Color>(part1_.color); }
+    Color color() const { return color_; }
     void set_color(Color color) {
-        if (part1_.color == static_cast<uint8_t>(color))
+        if (color_ == color)
             return;
-        part1_.color = static_cast<uint8_t>(color);
+        color_ = color;
         set_modified();
     }
 
-    uint16_t font_size() const { return part1_.details_a; }
+    const char* value() const { return value_; }
+    void set_value(const char* value) {
+        if (value_ == value)
+            return;
+        value_ = value;
+        set_modified();
+    }
+
+    uint16_t font_size() const { return font_size_; }
     void set_font_size(uint16_t font_size) {
-        if (part1_.details_a == font_size)
+        if (font_size_ == font_size)
             return;
-        part1_.details_a = font_size;
-        set_modified();
-    }
-
-    uint16_t length() const { return part1_.details_b; }
-    char* string() const { return const_cast<char*>(string_); }
-    void set_string(char* string, uint16_t length) {
-        if (std::strncmp(string_, string, length) == 0)
-            return;
-        part1_.details_b = length;
-        std::strncpy(string_, string, length);
+        font_size_ = font_size;
         set_modified();
     }
 
@@ -693,18 +671,23 @@ protected:
     size_t write_description_field(std::byte* buffer) override {
         auto& description = *new (buffer) DescriptionField{};
 
-        description.part1 = part1_;
+        description.part1.shape_type = ShapeType::TEXT;
+        description.part1.color      = color_;
+        description.part1.details_a  = font_size_;
 
         description.part2 = part2_;
 
-        std::memcpy(buffer + sizeof(DescriptionField), string_, length());
+        constexpr size_t data_part_size = 30;
+        auto str_length                 = std::min(strlen(value_), data_part_size);
+        description.part1.details_b     = str_length;
+        std::memcpy(buffer + sizeof(DescriptionField), value_, str_length);
 
-        return sizeof(DescriptionField);
+        return sizeof(DescriptionField) + data_part_size;
     }
 
-private:
-    DescriptionField::Part1 part1_;
-    char string_[30];
+    uint16_t font_size_;
+    Color color_;
+    const char* value_;
 };
 
 } // namespace app::ui
