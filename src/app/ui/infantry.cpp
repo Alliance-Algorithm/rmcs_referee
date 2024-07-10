@@ -2,6 +2,7 @@
 #include <rmcs_executor/component.hpp>
 
 #include "app/ui/shape/shape.hpp"
+#include "app/ui/widget/crosshair.hpp"
 
 namespace rmcs_referee::app::ui {
 using namespace std::chrono_literals;
@@ -11,57 +12,81 @@ class Infantry
     , public rclcpp::Node {
 public:
     Infantry()
-        : Node{
-              get_component_name(),
-              rclcpp::NodeOptions{}.automatically_declare_parameters_from_overrides(true)} {
+        : Node{get_component_name(), rclcpp::NodeOptions{}.automatically_declare_parameters_from_overrides(true)}
+        , crosshair_(Shape::Color::WHITE, x_center - 12, y_center - 37)
+        , horizontal_center_guidelines_(
+              {Shape::Color::WHITE, 2, x_center - 360, y_center, x_center - 100, y_center},
+              {Shape::Color::WHITE, 2, x_center + 100, y_center, x_center + 360, y_center})
+        , vertical_center_guidelines_(
+              {Shape::Color::WHITE, 2, x_center, 800, x_center, y_center + 100},
+              {Shape::Color::WHITE, 2, x_center, y_center - 100, x_center, 200})
+        , yaw_indicator_(Shape::Color::WHITE, 20, 2, x_center - 10, 860, 0)
+        , yaw_indicator_guidelines_(
+              {Shape::Color::WHITE, 2, x_center - 32, 830, x_center + 32, 830},
+              {Shape::Color::WHITE, 2, x_center, 830, x_center, 820})
+        , chassis_direction_indicator_(Shape::Color::PINK, 8, x_center, y_center, 0, 0, 67, 67) {
 
-        for (auto& line : lines) {
-            line.set_color(Shape::Color::BLACK);
-            line.set_width(1);
-            line.set_visible(true);
-        }
+        crosshair_.set_visible(true);
 
-        circle.set_color(Shape::Color::WHITE);
-        circle.set_width(20);
-        circle.set_x(1920 / 2);
-        circle.set_y(1080 / 2);
-        circle.set_r(450);
-        circle.set_priority(1);
-        circle.set_visible(true);
+        horizontal_center_guidelines_[0].set_visible(true);
+        horizontal_center_guidelines_[1].set_visible(true);
+        vertical_center_guidelines_[0].set_visible(true);
+        vertical_center_guidelines_[1].set_visible(true);
+
+        yaw_indicator_.set_visible(true);
+        yaw_indicator_guidelines_[0].set_visible(true);
+        yaw_indicator_guidelines_[1].set_visible(true);
+
+        chassis_direction_indicator_.set_visible(true);
     }
 
     void update() override {
-        // angle += 0.0001;
-        double shift = 0;
-        for (auto& line : lines) {
-            double x = 400 * std::cos(angle + shift);
-            double y = 400 * std::sin(angle + shift);
-            line.set_x(static_cast<uint16_t>(std::round(1920 / 2.0 + x)));
-            line.set_y(static_cast<uint16_t>(std::round(1080 / 2.0 + y)));
-            line.set_x2(static_cast<uint16_t>(std::round(1920 / 2.0 - x)));
-            line.set_y2(static_cast<uint16_t>(std::round(1080 / 2.0 - y)));
-            shift += 2 * std::numbers::pi / 400;
-        }
-        auto now = std::chrono::steady_clock::now();
-        if (tp_ < now) {
-            tp_ = now + 1s;
-            for (auto& line : lines) {
-                line.set_color(static_cast<Shape::Color>(color_));
-            }
-            circle.set_color(static_cast<Shape::Color>(color_));
-            if (++color_ > 8)
-                color_ = 0;
-        }
+        angle_ += 0.001;
+        if (angle_ >= 2 * std::numbers::pi)
+            angle_ -= 2 * std::numbers::pi;
+        update_yaw_indicator(angle_);
+        update_chassis_direction_indicator(angle_);
     }
 
 private:
-    double angle = 0;
+    void update_yaw_indicator(double yaw) {
+        int yaw_degree       = static_cast<int>(std::round(yaw / std::numbers::pi * 180));
+        int number_of_digits = 0;
+        for (int n = yaw_degree; n != 0; number_of_digits++)
+            n /= 10;
+        yaw_indicator_.set_value(yaw_degree);
+        yaw_indicator_.set_x(x_center - 10 * number_of_digits + 3);
+    }
 
-    std::chrono::steady_clock::time_point tp_ = std::chrono::steady_clock::now() + 1s;
+    void update_chassis_direction_indicator(double angle) {
+        int middle =
+            static_cast<int>(std::round((2 * std::numbers::pi - angle) / std::numbers::pi * 180));
 
-    Line lines[200];
-    Circle circle;
-    int color_ = 0;
+        int start = middle - 30;
+        if (start < 0)
+            start += 360;
+        chassis_direction_indicator_.set_angle_start(start);
+
+        int end = middle + 30;
+        if (end >= 360)
+            end -= 360;
+        chassis_direction_indicator_.set_angle_end(end);
+    }
+
+    static constexpr uint16_t screen_width = 1920, screen_height = 1080;
+    static constexpr uint16_t x_center = screen_width / 2, y_center = screen_height / 2;
+
+    double angle_ = 0;
+
+    CrossHair crosshair_;
+
+    Line horizontal_center_guidelines_[2];
+    Line vertical_center_guidelines_[2];
+
+    Integer yaw_indicator_;
+    Line yaw_indicator_guidelines_[2];
+
+    Arc chassis_direction_indicator_;
 };
 
 } // namespace rmcs_referee::app::ui
