@@ -6,12 +6,12 @@ namespace rmcs_referee::app::ui {
 
 class CrossHair {
 public:
-    CrossHair(Shape::Color color, uint16_t x, uint16_t y)
+    CrossHair(Shape::Color color, uint16_t x, uint16_t y, bool visible = true)
         : guidelines_(
-              {color, 2, static_cast<uint16_t>(x - r2), y, static_cast<uint16_t>(x - r1), y},
-              {color, 2, static_cast<uint16_t>(x + r1), y, static_cast<uint16_t>(x + r2), y},
-              {color, 2, x, static_cast<uint16_t>(y + r2), x, static_cast<uint16_t>(y + r1)},
-              {color, 2, x, static_cast<uint16_t>(y - r1), x, static_cast<uint16_t>(y - r2)})
+              {color, 2, (uint16_t)(x - r2), y, (uint16_t)(x - r1), y, visible},
+              {color, 2, (uint16_t)(x + r1), y, (uint16_t)(x + r2), y, visible},
+              {color, 2, x, (uint16_t)(y + r2), x, (uint16_t)(y + r1), visible},
+              {color, 2, x, (uint16_t)(y - r1), x, (uint16_t)(y - r2), visible})
         , center_(color, 2, x, y, 1, 1) {}
 
     void set_visible(bool value) {

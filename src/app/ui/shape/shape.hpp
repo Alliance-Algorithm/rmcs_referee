@@ -251,7 +251,8 @@ private:
     }
 
     size_t write_full_description_field(std::byte* buffer, Operation operation) {
-        auto written      = write_description_field(buffer);
+        size_t written =
+            visible_ ? write_description_field(buffer) : write_invisible_description_field(buffer);
         auto& description = *std::launder(reinterpret_cast<DescriptionField*>(buffer));
 
         // No special meaning, just to ensure no duplication
@@ -267,6 +268,23 @@ private:
         return written;
     }
 
+    static inline size_t write_invisible_description_field(std::byte* buffer) {
+        auto& description = *new (buffer) DescriptionField{};
+
+        description.part1.shape_type = ShapeType::LINE;
+        description.part1.color      = Color::WHITE;
+
+        description.part2.width = 0;
+        description.part2.x     = 0;
+        description.part2.y     = 0;
+
+        description.part3.details_c = 0;
+        description.part3.details_d = 0;
+        description.part3.details_e = 0;
+
+        return sizeof(DescriptionField);
+    }
+
     static constexpr uint8_t max_update_times = 4;
 
     uint8_t priority_            = 0;
@@ -279,13 +297,17 @@ private:
 class Line : public Shape {
 public:
     Line() = default;
-    Line(Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t x2, uint16_t y2) {
+    Line(
+        Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t x2, uint16_t y2,
+        bool visible = true) {
         part3_.color = color;
         part2_.width = width;
         part2_.x     = x;
         part2_.y     = y;
         part3_.x2    = x2;
         part3_.y2    = y2;
+
+        set_visible(visible);
     }
 
     Color color() const { return part3_.color; }
@@ -340,13 +362,17 @@ private:
 class Circle : public Shape {
 public:
     Circle() = default;
-    Circle(Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t rx, uint16_t ry) {
+    Circle(
+        Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t rx, uint16_t ry,
+        bool visible = true) {
         part3_.color = color;
         part2_.width = width;
         part2_.x     = x;
         part2_.y     = y;
         part3_.rx    = rx;
         part3_.ry    = ry;
+
+        set_visible(visible);
     }
 
     Color color() const { return part3_.color; }
@@ -404,13 +430,17 @@ protected:
 class Rectangle : public Shape {
 public:
     Rectangle() = default;
-    Rectangle(Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t x2, uint16_t y2) {
+    Rectangle(
+        Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t x2, uint16_t y2,
+        bool visible = true) {
         part3_.color = color;
         part2_.width = width;
         part2_.x     = x;
         part2_.y     = y;
         part3_.x2    = x2;
         part3_.y2    = y2;
+
+        set_visible(visible);
     }
 
     Color color() const { return part3_.color; }
@@ -464,7 +494,7 @@ class Arc : public Shape {
 public:
     Arc() = default;
     Arc(Color color, uint16_t width, uint16_t x, uint16_t y, uint16_t angle_start,
-        uint16_t angle_end, uint16_t rx, uint16_t ry)
+        uint16_t angle_end, uint16_t rx, uint16_t ry, bool visible = true)
         : Arc() {
         angle_start_ = angle_start;
         angle_end_   = angle_end;
@@ -476,6 +506,8 @@ public:
         part3_.color = color;
         part3_.rx    = rx;
         part3_.ry    = ry;
+
+        set_visible(visible);
     }
 
     Color color() const { return part3_.color; }
@@ -499,6 +531,20 @@ public:
         if (angle_end_ == angle_end)
             return;
         angle_end_ = angle_end;
+        set_modified();
+    }
+
+    void set_angle(uint16_t midpoint, uint16_t half_central_angle) {
+        int start = midpoint - half_central_angle;
+        if (start < 0)
+            start += 360;
+        angle_start_ = start;
+
+        int end = midpoint + half_central_angle;
+        if (end >= 360)
+            end -= 360;
+        angle_end_ = end;
+
         set_modified();
     }
 
@@ -553,7 +599,9 @@ protected:
 class Integer : public Shape {
 public:
     Integer() = default;
-    Integer(Color color, uint16_t font_size, uint16_t width, uint16_t x, uint16_t y, int32_t value)
+    Integer(
+        Color color, uint16_t font_size, uint16_t width, uint16_t x, uint16_t y, int32_t value,
+        bool visible = true)
         : Integer() {
         color_     = color;
         font_size_ = font_size;
@@ -563,6 +611,8 @@ public:
         part2_.y     = y;
 
         value_ = value;
+
+        set_visible(visible);
     }
 
     Color color() const { return color_; }
@@ -570,6 +620,15 @@ public:
         if (color_ == color)
             return;
         color_ = color;
+        set_modified();
+    }
+
+    void set_center_x(uint16_t x) {
+        int value            = value_;
+        int number_of_digits = value <= 0 ? 1 : 0;
+        for (; value != 0; number_of_digits++)
+            value /= 10;
+        part2_.x = x - font_size_ * number_of_digits / 2 + font_size_ / 5;
         set_modified();
     }
 
@@ -610,7 +669,29 @@ protected:
 };
 
 class Float : public Integer {
+public:
     using Integer::Integer;
+
+    void set_center_x(uint16_t x) {
+        int value            = value_;
+        int number_of_digits = value < 0 ? 1 : 0;
+
+        int integer_part = value / 1000;
+        if (integer_part == 0)
+            ++number_of_digits;
+        for (; integer_part != 0; number_of_digits++)
+            integer_part /= 10;
+
+        int decimal_part = value % 1000;
+        number_of_digits +=
+            2 * (decimal_part != 0) + (decimal_part % 100 != 0) + (decimal_part % 10 != 0);
+        part2_.x = x - font_size_ * number_of_digits / 2 + font_size_ / 5;
+
+        set_modified();
+    }
+
+    using Integer::set_value;
+    void set_value(double value) { Integer::set_value(static_cast<int>(std::round(value * 1000))); }
 
 protected:
     size_t write_description_field(std::byte* buffer) override {
@@ -631,7 +712,9 @@ protected:
 class Text : public Shape {
 public:
     Text() { value_ = nullptr; };
-    Text(Color color, uint16_t font_size, uint16_t width, uint16_t x, uint16_t y, const char* value)
+    Text(
+        Color color, uint16_t font_size, uint16_t width, uint16_t x, uint16_t y, const char* value,
+        bool visible = true)
         : Text() {
         color_     = color;
         font_size_ = font_size;
@@ -641,6 +724,8 @@ public:
         part2_.y     = y;
 
         value_ = value;
+
+        set_visible(visible);
     }
 
     Color color() const { return color_; }
