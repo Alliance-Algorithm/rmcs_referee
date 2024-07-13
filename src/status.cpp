@@ -34,10 +34,9 @@ public:
         register_output("/referee/id", robot_id_, rmcs_msgs::RobotId::UNKNOWN);
         register_output("/referee/shooter/cooling", robot_shooter_cooling_, 0);
         register_output("/referee/shooter/heat_limit", robot_shooter_heat_limit_, 0);
-        register_output("/referee/chassis_power_limit", robot_chassis_power_limit_, 0.0);
-
-        register_output("/referee/chassis_power", robot_chassis_power_, 0.0);
-        register_output("/referee/buffer_energy", robot_buffer_energy_, 60.0);
+        register_output("/referee/chassis/power_limit", robot_chassis_power_limit_, 0.0);
+        register_output("/referee/chassis/power", robot_chassis_power_, 0.0);
+        register_output("/referee/chassis/buffer_energy", robot_buffer_energy_, 60.0);
 
         robot_status_watchdog_.reset(5'000);
     }
