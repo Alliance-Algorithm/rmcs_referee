@@ -27,28 +27,58 @@ public:
         , yaw_indicator_guidelines_(
               {Shape::Color::WHITE, 2, x_center - 32, 830, x_center + 32, 830},
               {Shape::Color::WHITE, 2, x_center, 830, x_center, 820})
-        , chassis_direction_indicator_(Shape::Color::PINK, 8, x_center, y_center, 0, 0, 84, 84) {
+        , chassis_direction_indicator_(Shape::Color::PINK, 8, x_center, y_center, 0, 0, 84, 84)
+        , chassis_voltage_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 820, 0)
+        , chassis_power_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 790, 0)
+        , chassis_control_power_limit_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 760, 0)
+        , supercap_control_power_limit_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 730, 0)
+        , chassis_wheel_velocity_indicators_(
+              {Shape::Color::WHITE, 20, 2, x_center + 10, 700, 0},
+              {Shape::Color::GREEN, 20, 2, x_center + 10, 670, 0},
+              {Shape::Color::WHITE, 20, 2, x_center + 170, 670, 0},
+              {Shape::Color::GREEN, 20, 2, x_center + 170, 700, 0}) {
         yaw_indicator_.set_center_x(x_center);
 
         chassis_control_direction_indicator_.set_x(x_center);
         chassis_control_direction_indicator_.set_y(y_center);
 
-        register_input("/chassis/mode", chassis_mode_);
+        register_input("/chassis/control_mode", chassis_mode_);
+
         register_input("/chassis/angle", chassis_angle_);
         register_input("/chassis/control_angle", chassis_control_angle_);
+
+        register_input("/chassis/supercap/voltage", supercap_voltage_);
+        register_input("/chassis/supercap/enabled", supercap_enabled_);
+
+        register_input("/chassis/voltage", chassis_voltage_);
+        register_input("/chassis/power", chassis_power_);
+        register_input("/chassis/control_power_limit", chassis_control_power_limit_);
+        register_input("/chassis/supercap/control_power_limit", supercap_control_power_limit_);
+
+        register_input("/chassis/left_front_wheel/velocity", left_front_velocity_);
+        register_input("/chassis/left_back_wheel/velocity", left_back_velocity_);
+        register_input("/chassis/right_back_wheel/velocity", right_back_velocity_);
+        register_input("/chassis/right_front_wheel/velocity", right_front_velocity_);
     }
 
     void update() override {
         update_yaw_indicator();
         update_chassis_direction_indicator();
+
+        chassis_voltage_indicator_.set_value(*chassis_voltage_);
+        chassis_power_indicator_.set_value(*chassis_power_);
+        chassis_control_power_limit_indicator_.set_value(*chassis_control_power_limit_);
+        supercap_control_power_limit_indicator_.set_value(*supercap_control_power_limit_);
+
+        // chassis_wheel_velocity_indicators_[0].set_value(*left_front_velocity_);
+        // chassis_wheel_velocity_indicators_[1].set_value(*left_back_velocity_);
+        // chassis_wheel_velocity_indicators_[2].set_value(*right_back_velocity_);
+        // chassis_wheel_velocity_indicators_[3].set_value(*right_front_velocity_);
     }
 
 private:
     void update_yaw_indicator() {
-        double chassis_angle = *chassis_angle_;
-        if (std::isnan(chassis_angle))
-            chassis_angle = 0;
-        yaw_indicator_.set_value(chassis_angle);
+        yaw_indicator_.set_value(*supercap_voltage_);
         yaw_indicator_.set_center_x(x_center);
     }
 
@@ -92,6 +122,17 @@ private:
     InputInterface<rmcs_msgs::ChassisMode> chassis_mode_;
     InputInterface<double> chassis_angle_, chassis_control_angle_;
 
+    InputInterface<double> supercap_voltage_;
+    InputInterface<bool> supercap_enabled_;
+
+    InputInterface<double> chassis_voltage_;
+    InputInterface<double> chassis_power_;
+    InputInterface<double> chassis_control_power_limit_;
+    InputInterface<double> supercap_control_power_limit_;
+
+    InputInterface<double> left_front_velocity_, left_back_velocity_, right_back_velocity_,
+        right_front_velocity_;
+
     CrossHair crosshair_;
 
     Line horizontal_center_guidelines_[2];
@@ -101,6 +142,10 @@ private:
     Line yaw_indicator_guidelines_[2];
 
     Arc chassis_direction_indicator_, chassis_control_direction_indicator_;
+
+    Float chassis_voltage_indicator_, chassis_power_indicator_,
+        chassis_control_power_limit_indicator_, supercap_control_power_limit_indicator_;
+    Float chassis_wheel_velocity_indicators_[4];
 };
 
 } // namespace rmcs_referee::app::ui
