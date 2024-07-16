@@ -287,7 +287,7 @@ private:
 
     static constexpr uint8_t max_update_times = 4;
 
-    uint8_t priority_            = 0;
+    uint8_t priority_            = 15;
     uint8_t sync_confidence_ : 5 = max_update_times;
     bool is_text_shape_      : 1 = false;
     bool last_time_modified_ : 1 = false;
