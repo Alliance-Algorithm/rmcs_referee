@@ -1,3 +1,4 @@
+#include <eigen3/Eigen/Eigen>
 #include <rclcpp/node.hpp>
 
 #include <rmcs_executor/component.hpp>
@@ -38,6 +39,16 @@ public:
         register_output("/referee/chassis/power", robot_chassis_power_, 0.0);
         register_output("/referee/chassis/buffer_energy", robot_buffer_energy_, 60.0);
 
+        register_output("/referee/friends/hero/position", pose_hero_);
+        register_output("/referee/friends/engineer/position", pose_engineer_);
+        register_output("/referee/friends/infantry_iii/position", pose_infantry_iii_);
+        register_output("/referee/friends/infantry_iv/position", pose_infantry_iv_);
+        register_output("/referee/friends/infantry_v/position", pose_infantry_v_);
+        register_output("/referee/friends/sentry/position", pose_sentry_);
+
+        register_output("/referee/robots/hp", robots_hp_);
+        register_output("/referee/shooter/bullet_allowance", robot_bullet_allowance_, false);
+
         robot_status_watchdog_.reset(5'000);
     }
 
@@ -48,8 +59,8 @@ public:
         if (cache_size_ >= sizeof(frame_.header)) {
             auto frame_size = sizeof(frame_.header) + sizeof(frame_.body.command_id)
                             + frame_.header.data_length + sizeof(uint16_t);
-            cache_size_ += serial_->read(
-                reinterpret_cast<uint8_t*>(&frame_) + cache_size_, frame_size - cache_size_);
+            cache_size_ +=
+                serial_->read(reinterpret_cast<uint8_t*>(&frame_) + cache_size_, frame_size - cache_size_);
 
             if (cache_size_ == frame_size) {
                 cache_size_ = 0;
@@ -62,9 +73,7 @@ public:
         } else {
             auto result = serial_util::receive_package(
                 *serial_, frame_.header, cache_size_, static_cast<uint8_t>(0xa5),
-                [](const FrameHeader& header) {
-                    return serial_util::dji_crc::verify_crc8(header);
-                });
+                [](const FrameHeader& header) { return serial_util::dji_crc::verify_crc8(header); });
             if (result == serial_util::ReceiveResult::HEADER_INVALID) {
                 RCLCPP_WARN(logger_, "Header start invalid");
             } else if (result == serial_util::ReceiveResult::VERIFY_INVALID) {
@@ -146,15 +155,37 @@ private:
         *robot_buffer_energy_ = static_cast<double>(data.buffer_energy);
     }
 
-    void update_robot_position() {}
+    void update_robot_position() {
+        auto& data = reinterpret_cast<RobotPosition&>(frame_.body.data);
+
+        pose_sentry_->x() = data.x;
+        pose_sentry_->y() = data.y;
+    }
 
     void update_hurt_data() {}
 
     void update_shoot_data() {}
 
-    void update_bullet_allowance() {}
+    void update_bullet_allowance() {
+        auto& data               = reinterpret_cast<BulletAllowance&>(frame_.body.data);
+        *robot_bullet_allowance_ = data.bullet_allowance_17mm;
+    }
 
-    void update_game_robot_position() {}
+    // @note server to sentry only
+    void update_game_robot_position() {
+        auto& data = reinterpret_cast<GameRobotPosition&>(frame_.body.data);
+
+        pose_hero_->x()         = data.hero_x;
+        pose_hero_->y()         = data.hero_y;
+        pose_engineer_->x()     = data.engineer_x;
+        pose_engineer_->y()     = data.engineer_y;
+        pose_infantry_iii_->x() = data.infantry_3_x;
+        pose_infantry_iii_->y() = data.infantry_3_y;
+        pose_infantry_iv_->x()  = data.infantry_4_x;
+        pose_infantry_iv_->y()  = data.infantry_4_x;
+        pose_infantry_v_->x()   = data.infantry_5_x;
+        pose_infantry_v_->y()   = data.infantry_5_y;
+    }
 
     // When referee system loses connection unexpectedly,
     // use these indicators make sure the robot safe.
@@ -181,6 +212,16 @@ private:
     serial_util::TickTimer power_heat_data_watchdog_;
     OutputInterface<double> robot_chassis_power_;
     OutputInterface<double> robot_buffer_energy_;
+
+    OutputInterface<Eigen::Vector2d> pose_hero_;
+    OutputInterface<Eigen::Vector2d> pose_engineer_;
+    OutputInterface<Eigen::Vector2d> pose_infantry_iii_;
+    OutputInterface<Eigen::Vector2d> pose_infantry_iv_;
+    OutputInterface<Eigen::Vector2d> pose_infantry_v_;
+    OutputInterface<Eigen::Vector2d> pose_sentry_;
+
+    OutputInterface<GameRobotHp> robots_hp_;
+    OutputInterface<uint16_t> robot_bullet_allowance_;
 };
 
 } // namespace rmcs_referee
