@@ -137,6 +137,8 @@ private:
       update_bullet_allowance();
     else if (command_id == 0x020B)
       update_game_robot_position();
+    else if (command_id == 0x0301)
+      update_interaction();
   }
 
   void update_game_status() {
@@ -204,8 +206,12 @@ private:
     pose_infantry_iv_->y() = data.infantry_4_x;
     pose_infantry_v_->x() = data.infantry_5_x;
     pose_infantry_v_->y() = data.infantry_5_y;
+  }
 
-    std_msgs::msg::Float32MultiArray msg;
+  void update_interaction() {
+    auto &data = reinterpret_cast<InteractionHeader &>(frame_.body.data);
+    if (data.command == 0x222) {
+    }
   }
 
   // When referee system loses connection unexpectedly,

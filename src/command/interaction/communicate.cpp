@@ -7,7 +7,8 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <rmcs_msgs/msg/game_status.hpp>
-#include <std_msgs/msg/float64_multi_array.hpp>
+#include <std_msgs/msg/detail/int32__struct.hpp>
+#include <std_msgs/msg/float32_multi_array.hpp>
 #include <std_msgs/msg/int32.hpp>
 #include <std_msgs/msg/int8.hpp>
 
@@ -57,8 +58,12 @@ public:
     register_input("/referee/robots/hp", robots_hp_, false);
     register_input("/referee/shooter/bullet_allowance", bullet_, false);
 
-    position_publisher_ = create_publisher<std_msgs::msg::Float64MultiArray>(
-        "/unit_info/position", 10);
+    position_publisher_ = create_publisher<std_msgs::msg::Float32MultiArray>(
+        "/unit_info/enemy/position", 10);
+    hp_publisher_ = create_publisher<std_msgs::msg::Float32MultiArray>(
+        "/unit_info/enemy/hp", 10);
+    bullet_count_publisher_ =
+        create_publisher<std_msgs::msg::Int32>("/referee/sentry/bullet", 10);
 
     pose_subscription_ = create_subscription<geometry_msgs::msg::PoseStamped>(
         "/rmcs_navigation/pose", 10,
@@ -81,14 +86,14 @@ public:
         translation_origin_to_init_ = Eigen::Translation3d{6.5, 7.5, 0};
         rotation_origin_to_init_ = Eigen::Quaterniond::Identity();
 
-        status.friends_base_hp = robots_hp_->red_base;
-        status.friends_outpost_hp = robots_hp_->red_outpost;
-        status.friends_hero.hp = robots_hp_->red_1;
-        status.friends_engineer.hp = robots_hp_->red_2;
-        status.friends_infantry_iii.hp = robots_hp_->red_3;
-        status.friends_infantry_iv.hp = robots_hp_->red_4;
-        status.friends_infantry_v.hp = robots_hp_->red_5;
-        status.friends_sentry.hp = robots_hp_->red_7;
+        // status.friends_base_hp = robots_hp_->red_base;
+        // status.friends_outpost_hp = robots_hp_->red_outpost;
+        // status.friends_hero.hp = robots_hp_->red_1;
+        // status.friends_engineer.hp = robots_hp_->red_2;
+        // status.friends_infantry_iii.hp = robots_hp_->red_3;
+        // status.friends_infantry_iv.hp = robots_hp_->red_4;
+        // status.friends_infantry_v.hp = robots_hp_->red_5;
+        // status.friends_sentry.hp = robots_hp_->red_7;
 
         status.enemies_base_hp = robots_hp_->blue_base;
         status.enemies_outpost_hp = robots_hp_->blue_outpost;
@@ -106,14 +111,14 @@ public:
         rotation_origin_to_init_ = Eigen::Quaterniond{
             Eigen::AngleAxisd{std::numbers::pi, Eigen::Vector3d::UnitZ()}};
 
-        status.friends_base_hp = robots_hp_->blue_base;
-        status.friends_outpost_hp = robots_hp_->blue_outpost;
-        status.friends_hero.hp = robots_hp_->blue_1;
-        status.friends_engineer.hp = robots_hp_->blue_2;
-        status.friends_infantry_iii.hp = robots_hp_->blue_3;
-        status.friends_infantry_iv.hp = robots_hp_->blue_4;
-        status.friends_infantry_v.hp = robots_hp_->blue_5;
-        status.friends_sentry.hp = robots_hp_->blue_7;
+        // status.friends_base_hp = robots_hp_->blue_base;
+        // status.friends_outpost_hp = robots_hp_->blue_outpost;
+        // status.friends_hero.hp = robots_hp_->blue_1;
+        // status.friends_engineer.hp = robots_hp_->blue_2;
+        // status.friends_infantry_iii.hp = robots_hp_->blue_3;
+        // status.friends_infantry_iv.hp = robots_hp_->blue_4;
+        // status.friends_infantry_v.hp = robots_hp_->blue_5;
+        // status.friends_sentry.hp = robots_hp_->blue_7;
 
         status.enemies_base_hp = robots_hp_->red_base;
         status.enemies_outpost_hp = robots_hp_->red_outpost;
@@ -138,18 +143,18 @@ public:
     auto infantry_v_origin_link_ = transform(*enemies_infantry_v_sentry_link_);
     auto sentry_origin_link_ = transform(*enemies_sentry_sentry_link_);
 
-    std_msgs::msg::Float64MultiArray msg;
-    msg.data.push_back(hero_origin_link.x());
-    msg.data.push_back(engineer_origin_link_.x());
-    msg.data.push_back(infantry_iii_origin_link_.x());
-    msg.data.push_back(infantry_iv_origin_link_.x());
-    msg.data.push_back(infantry_v_origin_link_.x());
-    msg.data.push_back(hero_origin_link.y());
-    msg.data.push_back(engineer_origin_link_.y());
-    msg.data.push_back(infantry_iii_origin_link_.y());
-    msg.data.push_back(infantry_iv_origin_link_.y());
-    msg.data.push_back(infantry_v_origin_link_.y());
-    position_publisher_->publish(msg);
+    // std_msgs::msg::Float32MultiArray msg;
+    // msg.data.push_back(static_cast<float>(hero_origin_link.x()));
+    // msg.data.push_back(static_cast<float>(engineer_origin_link_.x()));
+    // msg.data.push_back(static_cast<float>(infantry_iii_origin_link_.x()));
+    // msg.data.push_back(static_cast<float>(infantry_iv_origin_link_.x()));
+    // msg.data.push_back(static_cast<float>(infantry_v_origin_link_.x()));
+    // msg.data.push_back(static_cast<float>(hero_origin_link.y()));
+    // msg.data.push_back(static_cast<float>(engineer_origin_link_.y()));
+    // msg.data.push_back(static_cast<float>(infantry_iii_origin_link_.y()));
+    // msg.data.push_back(static_cast<float>(infantry_iv_origin_link_.y()));
+    // msg.data.push_back(static_cast<float>(infantry_v_origin_link_.y()));
+    // position_publisher_->publish(msg);
 
     // status.friends_hero.pose.x = friends_hero_origin_link_->x();
     // status.friends_hero.pose.y = friends_hero_origin_link_->y();
@@ -172,7 +177,11 @@ public:
     // status.friends_sentry.pose.x = friends_sentry_origin_link_->x();
     // status.friends_sentry.pose.y = friends_sentry_origin_link_->y();
 
-    status.bullet = *bullet_;
+    // status.bullet = *bullet_;
+
+    std_msgs::msg::Int32 msg_bullet;
+    msg_bullet.data = *bullet_;
+    bullet_count_publisher_->publish(msg_bullet);
 
     auto data = SensorData{};
 
@@ -189,7 +198,7 @@ public:
     data.position[5].x = static_cast<float>(sentry_origin_link_.x());
     data.position[5].y = static_cast<float>(sentry_origin_link_.y());
 
-    // communicate_field_;
+    communicate_field_;
   }
 
 private:
@@ -221,10 +230,10 @@ private:
   InputInterface<status::GameRobotHp> robots_hp_;
   InputInterface<uint16_t> bullet_;
 
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr
+  rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr
       position_publisher_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr hp_publisher_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr bullet_count_;
+  rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr hp_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr bullet_count_publisher_;
 
   rclcpp::Publisher<std_msgs::msg::Int8>::SharedPtr founded_publisher_;
 
