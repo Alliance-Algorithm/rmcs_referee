@@ -77,6 +77,10 @@ struct __attribute__((packed)) BulletAllowance {
     uint16_t remaining_gold_coin;
 };
 
+struct __attribute__((packed)) RFID {
+    uint32_t status;
+};
+
 struct __attribute__((packed)) GameRobotPosition {
     float hero_x;
     float hero_y;
