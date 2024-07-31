@@ -270,6 +270,9 @@ private:
     }
 
     void sync_status_timer_callback() {
+        if (!enemies_hero_sentry_link_.ready())
+            return;
+
         auto enemies_pose = std_msgs::msg::Float32MultiArray{};
         enemies_pose.data.resize(12);
 
