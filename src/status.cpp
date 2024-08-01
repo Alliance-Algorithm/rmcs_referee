@@ -51,6 +51,8 @@ public:
         register_output("/referee/robots/hp", robots_hp_);
         register_output("/referee/shooter/bullet_allowance", robot_bullet_allowance_, false);
 
+        register_output("/radar/enemies/position", enemies_position_);
+
         enemies_pose_publisher_ = create_publisher<std_msgs::msg::Float32MultiArray>("/enemies/position", 10);
         enemies_hp_publisher_   = create_publisher<std_msgs::msg::UInt16MultiArray>("/enemies/hp", 10);
         bullet_publisher_       = create_publisher<std_msgs::msg::UInt16>("/referee/bullet", 10);
@@ -244,7 +246,7 @@ private:
     void update_interaction() {
         auto& data = reinterpret_cast<InteractionHeader&>(frame_.body.data);
         if (data.command == 0x222) {
-            auto scan   = reinterpret_cast<RadarScan*>(frame_.body.data + sizeof(InteractionHeader));
+            auto scan   = reinterpret_cast<EnemiesPosition*>(frame_.body.data + sizeof(InteractionHeader));
             radar_scan_ = *scan;
         } else if (false) {
         }
@@ -286,37 +288,49 @@ private:
             };
         }
 
-        auto enemies_hero_origin_link = transform(*enemies_hero_sentry_link_);
+        auto enemies_hero_origin_link      = transform(*enemies_hero_sentry_link_);
+        (*enemies_position_).position[0].x = enemies_hero_origin_link.cast<float>().x();
+        (*enemies_position_).position[0].y = enemies_hero_origin_link.cast<float>().y();
         if (enemies_hero_origin_link.x() + enemies_hero_origin_link.y() == 0) {
             enemies_hero_origin_link.x() = radar_scan_.position[0].x;
             enemies_hero_origin_link.y() = radar_scan_.position[0].y;
         }
 
         auto enemies_engineer_origin_link_ = transform(*enemies_engineer_sentry_link_);
+        (*enemies_position_).position[1].x = enemies_engineer_origin_link_.cast<float>().x();
+        (*enemies_position_).position[1].y = enemies_engineer_origin_link_.cast<float>().y();
         if (enemies_engineer_origin_link_.x() + enemies_engineer_origin_link_.y() == 0) {
             enemies_engineer_origin_link_.x() = radar_scan_.position[1].x;
             enemies_engineer_origin_link_.y() = radar_scan_.position[1].y;
         }
 
         auto enemies_infantry_iii_origin_link_ = transform(*enemies_infantry_iii_sentry_link_);
+        (*enemies_position_).position[2].x     = enemies_infantry_iii_origin_link_.cast<float>().x();
+        (*enemies_position_).position[2].y     = enemies_infantry_iii_origin_link_.cast<float>().y();
         if (enemies_infantry_iii_origin_link_.x() + enemies_infantry_iii_origin_link_.y() == 0) {
             enemies_infantry_iii_origin_link_.x() = radar_scan_.position[2].x;
             enemies_infantry_iii_origin_link_.y() = radar_scan_.position[2].y;
         }
 
         auto enemies_infantry_iv_origin_link_ = transform(*enemies_infantry_iv_sentry_link_);
+        (*enemies_position_).position[3].x    = enemies_infantry_iv_origin_link_.cast<float>().x();
+        (*enemies_position_).position[3].y    = enemies_infantry_iv_origin_link_.cast<float>().y();
         if (enemies_infantry_iv_origin_link_.x() + enemies_infantry_iv_origin_link_.y() == 0) {
             enemies_infantry_iv_origin_link_.x() = radar_scan_.position[3].x;
             enemies_infantry_iv_origin_link_.y() = radar_scan_.position[3].y;
         }
 
         auto enemies_infantry_v_origin_link_ = transform(*enemies_infantry_v_sentry_link_);
+        (*enemies_position_).position[4].x   = enemies_infantry_v_origin_link_.cast<float>().x();
+        (*enemies_position_).position[4].y   = enemies_infantry_v_origin_link_.cast<float>().y();
         if (enemies_infantry_v_origin_link_.x() + enemies_infantry_v_origin_link_.y() == 0) {
             enemies_infantry_v_origin_link_.x() = radar_scan_.position[4].x;
             enemies_infantry_v_origin_link_.y() = radar_scan_.position[4].y;
         }
 
-        auto enemies_sentry_origin_link_ = transform(*enemies_sentry_sentry_link_);
+        auto enemies_sentry_origin_link_   = transform(*enemies_sentry_sentry_link_);
+        (*enemies_position_).position[5].x = enemies_sentry_origin_link_.cast<float>().x();
+        (*enemies_position_).position[5].y = enemies_sentry_origin_link_.cast<float>().y();
         if (enemies_sentry_origin_link_.x() + enemies_sentry_origin_link_.y() == 0) {
             enemies_sentry_origin_link_.x() = radar_scan_.position[5].x;
             enemies_sentry_origin_link_.y() = radar_scan_.position[5].y;
@@ -368,6 +382,8 @@ private:
     OutputInterface<GameRobotHp> robots_hp_;
     OutputInterface<uint16_t> robot_bullet_allowance_;
 
+    OutputInterface<EnemiesPosition> enemies_position_;
+
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::Float32MultiArray>> enemies_pose_publisher_;
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::UInt16MultiArray>> enemies_hp_publisher_;
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::UInt16>> bullet_publisher_;
@@ -376,7 +392,7 @@ private:
 
     std::shared_ptr<rclcpp::TimerBase> sync_status_timer_;
 
-    RadarScan radar_scan_;
+    EnemiesPosition radar_scan_;
 
     // to get position of world link
     std::shared_ptr<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>> pose_subscription_;

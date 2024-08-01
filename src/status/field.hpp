@@ -100,7 +100,7 @@ struct __attribute__((packed)) InteractionHeader {
     uint16_t receiver;
 };
 
-struct __attribute__((packed)) RadarScan {
+struct __attribute__((packed)) EnemiesPosition {
     struct {
         float x;
         float y;
