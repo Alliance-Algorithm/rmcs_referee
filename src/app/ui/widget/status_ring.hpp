@@ -1,9 +1,11 @@
 #pragma once
 
 #include "app/ui/shape/shape.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <numbers>
 
 namespace rmcs_referee::app::ui {
@@ -100,6 +102,47 @@ public:
         arc_right_down_.set_visible(true);
         arc_right_down_.set_color(Shape::Color::WHITE);
 
+        // Text
+        // text_friction_.set_color(Shape::Color::WHITE);
+        // text_friction_.set_x(x_center + visible_radius - 50);
+        // text_friction_.set_y(y_center + 50);
+        // text_friction_.set_visible(true);
+        // text_friction_.set_font_size(20);
+        // text_friction_.set_width(2);
+        // text_friction_.set_value("friction");
+
+        // text_bullet_.set_color(Shape::Color::WHITE);
+        // text_bullet_.set_x(x_center + visible_radius - 50);
+        // text_bullet_.set_y(y_center - 50);
+        // text_bullet_.set_visible(true);
+        // text_bullet_.set_font_size(20);
+        // text_bullet_.set_width(2);
+        // text_bullet_.set_value("bullet");
+
+        // text_supercap_.set_color(Shape::Color::WHITE);
+        // text_supercap_.set_x(x_center - visible_radius + 50);
+        // text_supercap_.set_y(y_center + 50);
+        // text_supercap_.set_visible(true);
+        // text_supercap_.set_font_size(20);
+        // text_supercap_.set_width(2);
+        // text_supercap_.set_value("supercap");
+
+        // text_battery_.set_color(Shape::Color::WHITE);
+        // text_battery_.set_x(x_center - visible_radius + 50);
+        // text_battery_.set_y(y_center - 50);
+        // text_battery_.set_visible(true);
+        // text_battery_.set_font_size(20);
+        // text_battery_.set_width(2);
+        // text_battery_.set_value("battery");
+
+        bullet_allowance_number_.set_color(Shape::Color::WHITE);
+        bullet_allowance_number_.set_visible(true);
+        bullet_allowance_number_.set_font_size(15);
+        bullet_allowance_number_.set_width(2);
+        bullet_allowance_number_.set_x(x_center + visible_radius - 100);
+        bullet_allowance_number_.set_y(y_center - 10);
+        bullet_allowance_number_.set_value(0);
+
         set_limits(1000, 1000, 1000, 1000);
     }
 
@@ -139,6 +182,8 @@ public:
     // @note bullet allowance should more than zero
     void update_bullet_allowance(uint16_t value) {
         value = std::clamp(value, uint16_t(0), bullet_limit_);
+
+        bullet_allowance_number_.set_value(value);
 
         auto angle = 95 + visible_angle * value / bullet_limit_ + 1;
         bullet_allowance_.set_angle_end(static_cast<uint16_t>(angle));
@@ -214,6 +259,7 @@ private:
     Arc friction_wheel_speed_;
 
     Arc bullet_allowance_;
+    Integer bullet_allowance_number_;
     Arc bullet_scales_[4];
     Integer bullet_scale_numbers_[4];
 
@@ -224,6 +270,11 @@ private:
     Arc arc_left_down_;
     Arc arc_right_up_;
     Arc arc_right_down_;
+
+    // Text text_friction_;
+    // Text text_bullet_;
+    // Text text_supercap_;
+    // Text text_battery_;
 };
 
 } // namespace rmcs_referee::app::ui

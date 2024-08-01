@@ -65,7 +65,7 @@ public:
 
         register_input("/referee/shooter/bullet_allowance", robot_bullet_allowance_);
 
-        status_ring_.set_limits(500, 500, 400, 255);
+        status_ring_.set_limits(500, 500, 400, 400);
     }
 
     void update() override {
