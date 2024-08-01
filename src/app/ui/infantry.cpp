@@ -1,11 +1,13 @@
 #include <cmath>
 
+#include <cstdint>
 #include <rclcpp/node.hpp>
 #include <rmcs_executor/component.hpp>
 #include <rmcs_msgs/chassis_mode.hpp>
 
 #include "app/ui/shape/shape.hpp"
 #include "app/ui/widget/crosshair.hpp"
+#include "app/ui/widget/status_ring.hpp"
 
 namespace rmcs_referee::app::ui {
 using namespace std::chrono_literals;
@@ -17,6 +19,7 @@ public:
     Infantry()
         : Node{get_component_name(), rclcpp::NodeOptions{}.automatically_declare_parameters_from_overrides(true)}
         , crosshair_(Shape::Color::WHITE, x_center - 12, y_center - 37)
+        , status_ring_()
         , horizontal_center_guidelines_(
               {Shape::Color::WHITE, 2, x_center - 360, y_center, x_center - 110, y_center},
               {Shape::Color::WHITE, 2, x_center + 110, y_center, x_center + 360, y_center})
@@ -59,6 +62,10 @@ public:
         register_input("/chassis/left_back_wheel/velocity", left_back_velocity_);
         register_input("/chassis/right_back_wheel/velocity", right_back_velocity_);
         register_input("/chassis/right_front_wheel/velocity", right_front_velocity_);
+
+        register_input("/referee/shooter/bullet_allowance", robot_bullet_allowance_);
+
+        status_ring_.set_limits(500, 500, 400, 400);
     }
 
     void update() override {
@@ -74,6 +81,18 @@ public:
         // chassis_wheel_velocity_indicators_[1].set_value(*left_back_velocity_);
         // chassis_wheel_velocity_indicators_[2].set_value(*right_back_velocity_);
         // chassis_wheel_velocity_indicators_[3].set_value(*right_front_velocity_);
+
+        // For test
+        static uint8_t bullet{255};
+        static uint32_t count{0};
+
+        if (!(count++ % 30)) {
+            status_ring_.update_bullet_allowance(bullet--);
+        }
+
+        status_ring_.update_battery_power(300 + 50 * std::sin((double)count / 300));
+        status_ring_.update_friction_wheel_speed(300 + 20 * std::sin((double)count / 300), true);
+        status_ring_.update_supercap(400 + 50 * std::sin((double)count / 200), true);
     }
 
 private:
@@ -86,12 +105,10 @@ private:
         auto chassis_mode = *chassis_mode_;
 
         auto to_referee_angle = [](double angle) {
-            return static_cast<int>(
-                std::round((2 * std::numbers::pi - angle) / std::numbers::pi * 180));
+            return static_cast<int>(std::round((2 * std::numbers::pi - angle) / std::numbers::pi * 180));
         };
         chassis_direction_indicator_.set_color(
-            chassis_mode == rmcs_msgs::ChassisMode::SPIN ? Shape::Color::GREEN
-                                                         : Shape::Color::PINK);
+            chassis_mode == rmcs_msgs::ChassisMode::SPIN ? Shape::Color::GREEN : Shape::Color::PINK);
         chassis_direction_indicator_.set_angle(to_referee_angle(*chassis_angle_), 30);
 
         bool chassis_control_direction_indicator_visible = false;
@@ -101,19 +118,16 @@ private:
                 chassis_control_direction_indicator_.set_color(Shape::Color::CYAN);
                 chassis_control_direction_indicator_.set_width(8);
                 chassis_control_direction_indicator_.set_r(92);
-                chassis_control_direction_indicator_.set_angle(
-                    to_referee_angle(*chassis_control_angle_), 30);
+                chassis_control_direction_indicator_.set_angle(to_referee_angle(*chassis_control_angle_), 30);
             } else if (chassis_mode == rmcs_msgs::ChassisMode::LAUNCH_RAMP) {
                 chassis_control_direction_indicator_visible = true;
                 chassis_control_direction_indicator_.set_color(Shape::Color::CYAN);
                 chassis_control_direction_indicator_.set_width(28);
                 chassis_control_direction_indicator_.set_r(102);
-                chassis_control_direction_indicator_.set_angle(
-                    to_referee_angle(*chassis_control_angle_), 4);
+                chassis_control_direction_indicator_.set_angle(to_referee_angle(*chassis_control_angle_), 4);
             }
         }
-        chassis_control_direction_indicator_.set_visible(
-            chassis_control_direction_indicator_visible);
+        chassis_control_direction_indicator_.set_visible(chassis_control_direction_indicator_visible);
     }
 
     static constexpr uint16_t screen_width = 1920, screen_height = 1080;
@@ -133,7 +147,10 @@ private:
     InputInterface<double> left_front_velocity_, left_back_velocity_, right_back_velocity_,
         right_front_velocity_;
 
-    CrossHair crosshair_;
+    InputInterface<uint16_t> robot_bullet_allowance_;
+
+    Crosshair crosshair_;
+    StatusRing status_ring_;
 
     Line horizontal_center_guidelines_[2];
     Line vertical_center_guidelines_[2];
@@ -143,8 +160,8 @@ private:
 
     Arc chassis_direction_indicator_, chassis_control_direction_indicator_;
 
-    Float chassis_voltage_indicator_, chassis_power_indicator_,
-        chassis_control_power_limit_indicator_, supercap_control_power_limit_indicator_;
+    Float chassis_voltage_indicator_, chassis_power_indicator_, chassis_control_power_limit_indicator_,
+        supercap_control_power_limit_indicator_;
     Float chassis_wheel_velocity_indicators_[4];
 };
 

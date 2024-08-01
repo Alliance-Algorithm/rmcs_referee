@@ -4,9 +4,9 @@
 
 namespace rmcs_referee::app::ui {
 
-class CrossHair {
+class Crosshair {
 public:
-    CrossHair(Shape::Color color, uint16_t x, uint16_t y, bool visible = true)
+    Crosshair(Shape::Color color, uint16_t x, uint16_t y, bool visible = true)
         : guidelines_(
               {color, 2, (uint16_t)(x - r2), y, (uint16_t)(x - r1), y, visible},
               {color, 2, (uint16_t)(x + r1), y, (uint16_t)(x + r2), y, visible},
