@@ -1,13 +1,14 @@
 #pragma once
 
 #include "app/ui/shape/shape.hpp"
+#include <rmcs_msgs/robot_color.hpp>
 
 #include <algorithm>
+#include <bit>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <numbers>
-#include <robot_color.hpp>
 
 namespace rmcs_referee::app::ui {
 
@@ -16,21 +17,12 @@ public:
     StatusRing() {
         supercap_status_.set_x(x_center);
         supercap_status_.set_y(y_center);
-        supercap_status_.set_r(visible_radius - width_ring + 5);
+        supercap_status_.set_r(visible_radius - width_ring);
         supercap_status_.set_angle_start(275);
         supercap_status_.set_angle_end(275 + visible_angle);
-        supercap_status_.set_width(width_ring - 5);
+        supercap_status_.set_width(width_ring);
         supercap_status_.set_color(Shape::Color::PINK);
         supercap_status_.set_visible(true);
-
-        supercap_enable_status_.set_x(x_center);
-        supercap_enable_status_.set_y(y_center);
-        supercap_enable_status_.set_r(visible_radius - width_ring - 5);
-        supercap_enable_status_.set_angle_start(275);
-        supercap_enable_status_.set_angle_end(275 + visible_angle);
-        supercap_enable_status_.set_width(width_ring - 10);
-        supercap_enable_status_.set_color(Shape::Color::PINK);
-        supercap_enable_status_.set_visible(true);
 
         battery_status_.set_x(x_center);
         battery_status_.set_y(y_center);
@@ -116,7 +108,7 @@ public:
         supercap_voltage_.set_color(Shape::Color::WHITE);
         supercap_voltage_.set_font_size(15);
         supercap_voltage_.set_width(2);
-        supercap_voltage_.set_x(x_center - visible_radius + 70);
+        supercap_voltage_.set_x(x_center - 200);
         supercap_voltage_.set_y(y_center + 25);
         supercap_voltage_.set_value(0);
         supercap_voltage_.set_visible(true);
@@ -124,7 +116,7 @@ public:
         battery_voltage_.set_color(Shape::Color::WHITE);
         battery_voltage_.set_font_size(15);
         battery_voltage_.set_width(2);
-        battery_voltage_.set_x(x_center - visible_radius + 70);
+        battery_voltage_.set_x(x_center - 200);
         battery_voltage_.set_y(y_center - 10);
         battery_voltage_.set_value(0);
         battery_voltage_.set_visible(true);
@@ -193,37 +185,37 @@ public:
     void update_supercap(double value, bool enable) {
         supercap_voltage_.set_value(value);
 
-        value = std::clamp(value, double(0), supercap_limit_);
-
-        auto angle = 275 + visible_angle * value / battery_limit_ + 1;
+        auto angle = 275 + calculate_angle(value, 10.5, supercap_limit_) + 1;
         supercap_status_.set_angle_end(static_cast<uint16_t>(angle));
 
-        if (value > 22.8) {
-            supercap_status_.set_color(Shape::Color::WHITE);
+        if (value > 22.6) {
+            supercap_status_.set_color(enable ? Shape::Color::CYAN : Shape::Color::GREEN);
+        } else if (value > 13.5) {
+            supercap_status_.set_color(enable ? Shape::Color::YELLOW : Shape::Color::ORANGE);
         } else {
-            supercap_status_.set_color(Shape::Color::PINK);
-        }
-
-        if (enable) {
-            supercap_enable_status_.set_color(Shape::Color::GREEN);
-        } else {
-            supercap_enable_status_.set_color(Shape::Color::PINK);
+            supercap_status_.set_color(enable ? Shape::Color::PURPLE : Shape::Color::PINK);
         }
     }
 
     void update_battery_power(double value) {
         battery_voltage_.set_value(value);
 
-        value = std::clamp(value, double(0), battery_limit_);
-
-        auto angle = 265 - visible_angle * value / supercap_limit_ - 1;
+        auto angle = 265 - calculate_angle(value, 20, 25.7) - 1;
         battery_status_.set_angle_start(static_cast<uint16_t>(angle));
+
+        if (value > 23.18) {
+            battery_status_.set_color(Shape::Color::GREEN);
+        } else if (value > 22.05) {
+            battery_status_.set_color(Shape::Color::YELLOW);
+        } else if (value > 21.40) {
+            battery_status_.set_color(Shape::Color::ORANGE);
+        } else {
+            battery_status_.set_color(Shape::Color::PINK);
+        }
     }
 
     void update_friction_wheel_speed(double value, bool enable) {
-        value = std::clamp(value, double(0), friction_limit_);
-
-        auto angle = 85 - visible_angle * value / friction_limit_ - 1;
+        auto angle = 85 - calculate_angle(value, 0, friction_limit_) - 1;
         friction_wheel_speed_.set_angle_start(static_cast<uint16_t>(angle));
 
         if (enable) {
@@ -233,28 +225,30 @@ public:
         }
     }
 
-    // @note bullet allowance should more than zero
     void update_bullet_allowance(uint16_t value) {
-        auto& allowance = reinterpret_cast<int16_t&>(value);
+        auto allowance = std::bit_cast<int16_t>(value);
 
         // real number
         bullet_allowance_.set_value(allowance);
 
         // limit ring
-        allowance  = std::clamp(allowance, int16_t(0), bullet_limit_);
-        auto angle = 95 + visible_angle * allowance / bullet_limit_ + 1;
+        auto angle = 95 + calculate_angle(allowance, 0, bullet_limit_) + 1;
         bullet_status_.set_angle_end(static_cast<uint16_t>(angle));
 
         if (allowance < 25) {
             bullet_status_.set_color(Shape::Color::PINK);
         } else if (allowance < 50) {
-            bullet_status_.set_color(Shape::Color::YELLOW);
+            bullet_status_.set_color(Shape::Color::ORANGE);
         } else {
             bullet_status_.set_color(Shape::Color::GREEN);
         }
     }
 
 private:
+    static constexpr double calculate_angle(double value, double min, double max) {
+        return visible_angle * std::clamp(value - min, 0.0, max - min) / (max - min);
+    }
+
     void set_limits(
         double supercap_limit, double battery_limit, double friction_limit, int16_t bullet_limit) {
         supercap_limit_ = supercap_limit;
@@ -310,7 +304,6 @@ private:
 
     // Dynamic part
     Arc supercap_status_;
-    Arc supercap_enable_status_;
     Float supercap_voltage_;
 
     Arc battery_status_;

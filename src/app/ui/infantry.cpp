@@ -59,7 +59,7 @@ public:
         register_input("/chassis/right_back_wheel/velocity", right_back_velocity_);
         register_input("/chassis/right_front_wheel/velocity", right_front_velocity_);
 
-        // register_input("/referee/shooter/bullet_allowance", robot_bullet_allowance_);
+        register_input("/referee/shooter/bullet_allowance", robot_bullet_allowance_);
 
         register_input("/gimbal/left_friction/control_velocity", left_friction_control_velocity_);
         register_input("/gimbal/left_friction/velocity", left_friction_velocity_);
@@ -80,8 +80,7 @@ public:
 
         chassis_power_number_.set_value(*chassis_power_);
 
-        // status_ring_.update_bullet_allowance(*robot_bullet_allowance_);
-        status_ring_.update_bullet_allowance(125);
+        status_ring_.update_bullet_allowance(*robot_bullet_allowance_);
         status_ring_.update_friction_wheel_speed(
             std::min(*left_friction_velocity_, *right_friction_velocity_),
             *left_friction_control_velocity_ > 0);

@@ -1,3 +1,4 @@
+#include <eigen3/Eigen/Eigen>
 #include <rclcpp/node.hpp>
 
 #include <rmcs_executor/component.hpp>
@@ -30,6 +31,8 @@ public:
         register_output("/referee/chassis/power_limit", robot_chassis_power_limit_, 0.0);
         register_output("/referee/chassis/power", robot_chassis_power_, 0.0);
         register_output("/referee/chassis/buffer_energy", robot_buffer_energy_, 60.0);
+        register_output("/referee/robots/hp", robots_hp_);
+        register_output("/referee/shooter/bullet_allowance", robot_bullet_allowance_, false);
 
         robot_status_watchdog_.reset(5'000);
     }
@@ -145,7 +148,10 @@ private:
 
     void update_shoot_data() {}
 
-    void update_bullet_allowance() {}
+    void update_bullet_allowance() {
+        auto& data               = reinterpret_cast<BulletAllowance&>(frame_.body.data);
+        *robot_bullet_allowance_ = data.bullet_allowance_17mm;
+    }
 
     void update_game_robot_position() {}
 
@@ -174,6 +180,9 @@ private:
     serial_util::TickTimer power_heat_data_watchdog_;
     OutputInterface<double> robot_chassis_power_;
     OutputInterface<double> robot_buffer_energy_;
+
+    OutputInterface<GameRobotHp> robots_hp_;
+    OutputInterface<uint16_t> robot_bullet_allowance_;
 };
 
 } // namespace rmcs_referee
