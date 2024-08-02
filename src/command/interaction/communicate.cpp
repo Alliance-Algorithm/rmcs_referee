@@ -6,6 +6,7 @@
 
 #include "command/field.hpp"
 #include "rmcs_executor/component.hpp"
+#include "rmcs_msgs/sense.hpp"
 #include "status/field.hpp"
 
 namespace rmcs_referee::command::interaction {
@@ -17,7 +18,7 @@ class Communicate
 public:
     Communicate()
         : rclcpp::Node(get_component_name()) {
-        register_input("/radar/enemies/position", enemies_position_);
+        register_input("/sense/enemies/position", enemies_position_);
         register_input("/referee/id", robot_id_);
 
         register_output("/referee/command/interaction/communicate", communicate_field_);
@@ -33,7 +34,7 @@ public:
         *communicate_field_ = Field([this](std::byte* buffer) {
             struct __attribute__((packed)) Write {
                 status::InteractionHeader header;
-                status::EnemiesPosition position;
+                rmcs_msgs::EnemiesPosition position;
             };
             auto& write = *new (buffer) Write{};
 
@@ -53,7 +54,7 @@ public:
     }
 
 private:
-    InputInterface<status::EnemiesPosition> enemies_position_;
+    InputInterface<rmcs_msgs::EnemiesPosition> enemies_position_;
     InputInterface<rmcs_msgs::RobotId> robot_id_;
 
     OutputInterface<Field> communicate_field_;

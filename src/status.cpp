@@ -17,6 +17,7 @@
 #include <serial_util/tick_timer.hpp>
 
 #include "frame.hpp"
+#include "rmcs_msgs/sense.hpp"
 #include "status/field.hpp"
 
 namespace rmcs_referee {
@@ -40,8 +41,8 @@ public:
 
         // output
         register_output("/referee/game/stage", game_stage_, rmcs_msgs::GameStage::UNKNOWN);
-
         register_output("/referee/id", robot_id_, rmcs_msgs::RobotId::UNKNOWN);
+
         register_output("/referee/shooter/cooling", robot_shooter_cooling_, 0);
         register_output("/referee/shooter/heat_limit", robot_shooter_heat_limit_, 0);
         register_output("/referee/chassis/power_limit", robot_chassis_power_limit_, 0.0);
@@ -51,31 +52,14 @@ public:
         register_output("/referee/robots/hp", robots_hp_);
         register_output("/referee/shooter/bullet_allowance", robot_bullet_allowance_, false);
 
-        register_output("/radar/enemies/position", enemies_position_);
+        register_output("/radar/enemies/position", radar_scan_);
 
-        enemies_pose_publisher_ = create_publisher<std_msgs::msg::Float32MultiArray>("/enemies/position", 10);
-        enemies_hp_publisher_   = create_publisher<std_msgs::msg::UInt16MultiArray>("/enemies/hp", 10);
-        bullet_publisher_       = create_publisher<std_msgs::msg::UInt16>("/referee/bullet", 10);
-        rfid_publisher_         = create_publisher<std_msgs::msg::UInt32>("/referee/rfid", 10);
-        hp_publisher_           = create_publisher<std_msgs::msg::UInt16>("/referee/hp", 10);
+        enemies_hp_publisher_ = create_publisher<std_msgs::msg::UInt16MultiArray>("/enemies/hp", 10);
+        bullet_publisher_     = create_publisher<std_msgs::msg::UInt16>("/referee/bullet", 10);
+        rfid_publisher_       = create_publisher<std_msgs::msg::UInt32>("/referee/rfid", 10);
+        hp_publisher_         = create_publisher<std_msgs::msg::UInt16>("/referee/hp", 10);
 
         robot_status_watchdog_.reset(5'000);
-
-        // input
-        register_input("/auto_aim/hero/position", enemies_hero_sentry_link_, false);
-        register_input("/auto_aim/engineer/position", enemies_engineer_sentry_link_, false);
-        register_input("/auto_aim/infantry_iii/position", enemies_infantry_iii_sentry_link_, false);
-        register_input("/auto_aim/infantry_iv/position", enemies_infantry_iv_sentry_link_, false);
-        register_input("/auto_aim/infantry_v/position", enemies_infantry_v_sentry_link_, false);
-        register_input("/auto_aim/sentry/position", enemies_sentry_sentry_link_, false);
-
-        pose_subscription_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-            "/rmcs_navigation/pose", 10, [this](const std::unique_ptr<geometry_msgs::msg::PoseStamped>& msg) {
-                pose_subscription_callback(msg);
-            });
-
-        using namespace std::chrono_literals;
-        sync_status_timer_ = create_wall_timer(100ms, [this] { sync_status_timer_callback(); });
     }
 
     void update() override {
@@ -246,112 +230,14 @@ private:
     void update_interaction() {
         auto& data = reinterpret_cast<InteractionHeader&>(frame_.body.data);
         if (data.command == 0x222) {
-            auto scan   = reinterpret_cast<EnemiesPosition*>(frame_.body.data + sizeof(InteractionHeader));
-            radar_scan_ = *scan;
+            auto scan = std::launder(
+                reinterpret_cast<rmcs_msgs::EnemiesPosition*>(frame_.body.data + sizeof(InteractionHeader)));
+            *radar_scan_ = *scan;
         } else if (false) {
         }
     }
 
 private:
-    void pose_subscription_callback(const std::unique_ptr<geometry_msgs::msg::PoseStamped>& msg) {
-        translation_init_to_sentry_.x() = msg->pose.position.x;
-        translation_init_to_sentry_.y() = msg->pose.position.y;
-        translation_init_to_sentry_.z() = msg->pose.position.z;
-
-        rotation_init_to_sentry_.w() = msg->pose.orientation.w;
-        rotation_init_to_sentry_.x() = msg->pose.orientation.x;
-        rotation_init_to_sentry_.y() = msg->pose.orientation.y;
-        rotation_init_to_sentry_.z() = msg->pose.orientation.z;
-    }
-
-    Eigen::Vector2d transform(const Eigen::Vector2d& pose) {
-        static Eigen::Vector3d pose3d{Eigen::Vector3d::Identity()};
-        pose3d = translation_origin_to_init_ * rotation_origin_to_init_ * translation_init_to_sentry_
-               * rotation_init_to_sentry_ * Eigen::Vector3d{pose.x(), pose.y(), 0};
-        return {pose3d.x(), pose3d.y()};
-    }
-
-    void sync_status_timer_callback() {
-        if (!enemies_hero_sentry_link_.ready())
-            return;
-
-        auto enemies_pose = std_msgs::msg::Float32MultiArray{};
-        enemies_pose.data.resize(12);
-
-        if (robot_id_->color() == rmcs_msgs::RobotColor::RED) {
-            translation_origin_to_init_ = Eigen::Translation3d{6.5, 7.5, 0};
-            rotation_origin_to_init_    = Eigen::Quaterniond::Identity();
-        } else if (robot_id_->color() == rmcs_msgs::RobotColor::BLUE) {
-            translation_origin_to_init_ = Eigen::Translation3d{21.5, 7.5, 0};
-            rotation_origin_to_init_    = Eigen::Quaterniond{
-                Eigen::AngleAxisd{std::numbers::pi, Eigen::Vector3d::UnitZ()}
-            };
-        }
-
-        auto enemies_hero_origin_link      = transform(*enemies_hero_sentry_link_);
-        (*enemies_position_).position[0].x = enemies_hero_origin_link.cast<float>().x();
-        (*enemies_position_).position[0].y = enemies_hero_origin_link.cast<float>().y();
-        if (enemies_hero_origin_link.x() + enemies_hero_origin_link.y() == 0) {
-            enemies_hero_origin_link.x() = radar_scan_.position[0].x;
-            enemies_hero_origin_link.y() = radar_scan_.position[0].y;
-        }
-
-        auto enemies_engineer_origin_link_ = transform(*enemies_engineer_sentry_link_);
-        (*enemies_position_).position[1].x = enemies_engineer_origin_link_.cast<float>().x();
-        (*enemies_position_).position[1].y = enemies_engineer_origin_link_.cast<float>().y();
-        if (enemies_engineer_origin_link_.x() + enemies_engineer_origin_link_.y() == 0) {
-            enemies_engineer_origin_link_.x() = radar_scan_.position[1].x;
-            enemies_engineer_origin_link_.y() = radar_scan_.position[1].y;
-        }
-
-        auto enemies_infantry_iii_origin_link_ = transform(*enemies_infantry_iii_sentry_link_);
-        (*enemies_position_).position[2].x     = enemies_infantry_iii_origin_link_.cast<float>().x();
-        (*enemies_position_).position[2].y     = enemies_infantry_iii_origin_link_.cast<float>().y();
-        if (enemies_infantry_iii_origin_link_.x() + enemies_infantry_iii_origin_link_.y() == 0) {
-            enemies_infantry_iii_origin_link_.x() = radar_scan_.position[2].x;
-            enemies_infantry_iii_origin_link_.y() = radar_scan_.position[2].y;
-        }
-
-        auto enemies_infantry_iv_origin_link_ = transform(*enemies_infantry_iv_sentry_link_);
-        (*enemies_position_).position[3].x    = enemies_infantry_iv_origin_link_.cast<float>().x();
-        (*enemies_position_).position[3].y    = enemies_infantry_iv_origin_link_.cast<float>().y();
-        if (enemies_infantry_iv_origin_link_.x() + enemies_infantry_iv_origin_link_.y() == 0) {
-            enemies_infantry_iv_origin_link_.x() = radar_scan_.position[3].x;
-            enemies_infantry_iv_origin_link_.y() = radar_scan_.position[3].y;
-        }
-
-        auto enemies_infantry_v_origin_link_ = transform(*enemies_infantry_v_sentry_link_);
-        (*enemies_position_).position[4].x   = enemies_infantry_v_origin_link_.cast<float>().x();
-        (*enemies_position_).position[4].y   = enemies_infantry_v_origin_link_.cast<float>().y();
-        if (enemies_infantry_v_origin_link_.x() + enemies_infantry_v_origin_link_.y() == 0) {
-            enemies_infantry_v_origin_link_.x() = radar_scan_.position[4].x;
-            enemies_infantry_v_origin_link_.y() = radar_scan_.position[4].y;
-        }
-
-        auto enemies_sentry_origin_link_   = transform(*enemies_sentry_sentry_link_);
-        (*enemies_position_).position[5].x = enemies_sentry_origin_link_.cast<float>().x();
-        (*enemies_position_).position[5].y = enemies_sentry_origin_link_.cast<float>().y();
-        if (enemies_sentry_origin_link_.x() + enemies_sentry_origin_link_.y() == 0) {
-            enemies_sentry_origin_link_.x() = radar_scan_.position[5].x;
-            enemies_sentry_origin_link_.y() = radar_scan_.position[5].y;
-        }
-
-        enemies_pose.data[0]  = enemies_hero_origin_link.cast<float>().x();
-        enemies_pose.data[1]  = enemies_hero_origin_link.cast<float>().y();
-        enemies_pose.data[2]  = enemies_engineer_origin_link_.cast<float>().x();
-        enemies_pose.data[3]  = enemies_engineer_origin_link_.cast<float>().y();
-        enemies_pose.data[4]  = enemies_infantry_iii_origin_link_.cast<float>().x();
-        enemies_pose.data[5]  = enemies_infantry_iii_origin_link_.cast<float>().y();
-        enemies_pose.data[6]  = enemies_infantry_iv_origin_link_.cast<float>().x();
-        enemies_pose.data[7]  = enemies_infantry_iv_origin_link_.cast<float>().y();
-        enemies_pose.data[8]  = enemies_infantry_v_origin_link_.cast<float>().x();
-        enemies_pose.data[9]  = enemies_infantry_v_origin_link_.cast<float>().y();
-        enemies_pose.data[10] = enemies_sentry_origin_link_.cast<float>().x();
-        enemies_pose.data[11] = enemies_sentry_origin_link_.cast<float>().y();
-
-        enemies_pose_publisher_->publish(enemies_pose);
-    }
-
     // When referee system loses connection unexpectedly,
     // use these indicators make sure the robot safe.
     // Muzzle: Cooling priority with level 1
@@ -382,34 +268,12 @@ private:
     OutputInterface<GameRobotHp> robots_hp_;
     OutputInterface<uint16_t> robot_bullet_allowance_;
 
-    OutputInterface<EnemiesPosition> enemies_position_;
+    OutputInterface<rmcs_msgs::EnemiesPosition> radar_scan_;
 
-    std::shared_ptr<rclcpp::Publisher<std_msgs::msg::Float32MultiArray>> enemies_pose_publisher_;
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::UInt16MultiArray>> enemies_hp_publisher_;
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::UInt16>> bullet_publisher_;
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::UInt16>> hp_publisher_;
     std::shared_ptr<rclcpp::Publisher<std_msgs::msg::UInt32>> rfid_publisher_;
-
-    std::shared_ptr<rclcpp::TimerBase> sync_status_timer_;
-
-    EnemiesPosition radar_scan_;
-
-    // to get position of world link
-    std::shared_ptr<rclcpp::Subscription<geometry_msgs::msg::PoseStamped>> pose_subscription_;
-
-    Eigen::Translation3d translation_init_to_sentry_{};
-    Eigen::Quaterniond rotation_init_to_sentry_{};
-
-    Eigen::Translation3d translation_origin_to_init_{};
-    Eigen::Quaterniond rotation_origin_to_init_{};
-
-    // from auto aim
-    InputInterface<Eigen::Vector2d> enemies_hero_sentry_link_;
-    InputInterface<Eigen::Vector2d> enemies_engineer_sentry_link_;
-    InputInterface<Eigen::Vector2d> enemies_infantry_iii_sentry_link_;
-    InputInterface<Eigen::Vector2d> enemies_infantry_iv_sentry_link_;
-    InputInterface<Eigen::Vector2d> enemies_infantry_v_sentry_link_;
-    InputInterface<Eigen::Vector2d> enemies_sentry_sentry_link_;
 };
 
 } // namespace rmcs_referee
