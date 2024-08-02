@@ -1,9 +1,13 @@
+#include <algorithm>
 #include <cmath>
-
 #include <cstdint>
+
+#include <game_stage.hpp>
 #include <rclcpp/node.hpp>
 #include <rmcs_executor/component.hpp>
 #include <rmcs_msgs/chassis_mode.hpp>
+#include <rmcs_msgs/mouse.hpp>
+#include <utility>
 
 #include "app/ui/shape/shape.hpp"
 #include "app/ui/widget/crosshair.hpp"
@@ -26,21 +30,14 @@ public:
         , vertical_center_guidelines_(
               {Shape::Color::WHITE, 2, x_center, 800, x_center, y_center + 110},
               {Shape::Color::WHITE, 2, x_center, y_center - 110, x_center, 200})
-        , yaw_indicator_(Shape::Color::WHITE, 20, 2, x_center, 860, 0)
+        , chassis_power_number_(Shape::Color::WHITE, 20, 2, x_center - 40, 860, 0)
         , yaw_indicator_guidelines_(
               {Shape::Color::WHITE, 2, x_center - 32, 830, x_center + 32, 830},
               {Shape::Color::WHITE, 2, x_center, 830, x_center, 820})
         , chassis_direction_indicator_(Shape::Color::PINK, 8, x_center, y_center, 0, 0, 84, 84)
-        , chassis_voltage_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 820, 0)
-        , chassis_power_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 790, 0)
-        , chassis_control_power_limit_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 760, 0)
-        , supercap_control_power_limit_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 730, 0)
-        , chassis_wheel_velocity_indicators_(
-              {Shape::Color::WHITE, 20, 2, x_center + 10, 700, 0},
-              {Shape::Color::GREEN, 20, 2, x_center + 10, 670, 0},
-              {Shape::Color::WHITE, 20, 2, x_center + 170, 670, 0},
-              {Shape::Color::GREEN, 20, 2, x_center + 170, 700, 0}) {
-        yaw_indicator_.set_center_x(x_center);
+        , chassis_control_power_limit_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 820, 0)
+        , supercap_control_power_limit_indicator_(Shape::Color::WHITE, 20, 2, x_center + 10, 790, 0)
+        , time_reminder_(Shape::Color::PINK, 50, 5, x_center + 150, y_center + 65, 0, false) {
 
         chassis_control_direction_indicator_.set_x(x_center);
         chassis_control_direction_indicator_.set_y(y_center);
@@ -65,40 +62,39 @@ public:
 
         register_input("/referee/shooter/bullet_allowance", robot_bullet_allowance_);
 
-        status_ring_.set_limits(500, 500, 400, 400);
+        register_input("/gimbal/left_friction/control_velocity", left_friction_control_velocity_);
+        register_input("/gimbal/left_friction/velocity", left_friction_velocity_);
+        register_input("/gimbal/right_friction/velocity", right_friction_velocity_);
+
+        register_input("/remote/mouse", mouse_);
+
+        register_input("/referee/game/stage", game_stage_);
+
+        // register_input("/auto_aim/ui_target", auto_aim_target_, false);
     }
 
     void update() override {
-        update_yaw_indicator();
         update_chassis_direction_indicator();
 
-        chassis_voltage_indicator_.set_value(*chassis_voltage_);
-        chassis_power_indicator_.set_value(*chassis_power_);
         chassis_control_power_limit_indicator_.set_value(*chassis_control_power_limit_);
         supercap_control_power_limit_indicator_.set_value(*supercap_control_power_limit_);
 
-        // chassis_wheel_velocity_indicators_[0].set_value(*left_front_velocity_);
-        // chassis_wheel_velocity_indicators_[1].set_value(*left_back_velocity_);
-        // chassis_wheel_velocity_indicators_[2].set_value(*right_back_velocity_);
-        // chassis_wheel_velocity_indicators_[3].set_value(*right_front_velocity_);
+        chassis_power_number_.set_value(*chassis_power_);
 
-        // For test
-        static uint8_t bullet{255};
-        static uint32_t count{0};
+        status_ring_.update_bullet_allowance(*robot_bullet_allowance_);
+        status_ring_.update_friction_wheel_speed(
+            std::min(*left_friction_velocity_, *right_friction_velocity_),
+            *left_friction_control_velocity_ > 0);
+        status_ring_.update_supercap(*supercap_voltage_, *supercap_enabled_);
+        status_ring_.update_battery_power(*chassis_voltage_);
 
-        if (!(count++ % 30)) {
-            status_ring_.update_bullet_allowance(bullet--);
-        }
-
-        status_ring_.update_battery_power(300 + 50 * std::sin((double)count / 300));
-        status_ring_.update_friction_wheel_speed(300 + 20 * std::sin((double)count / 300), true);
-        status_ring_.update_supercap(400 + 50 * std::sin((double)count / 200), true);
+        status_ring_.update_auto_aim_enable(mouse_->right == 1);
     }
 
 private:
-    void update_yaw_indicator() {
-        yaw_indicator_.set_value(*supercap_voltage_);
-        yaw_indicator_.set_center_x(x_center);
+    void update_time_reminder() {
+        if (!game_stage_.ready())
+            return;
     }
 
     void update_chassis_direction_indicator() {
@@ -149,20 +145,30 @@ private:
 
     InputInterface<uint16_t> robot_bullet_allowance_;
 
+    InputInterface<double> left_friction_control_velocity_;
+    InputInterface<double> left_friction_velocity_;
+    InputInterface<double> right_friction_velocity_;
+
+    InputInterface<rmcs_msgs::Mouse> mouse_;
+
+    InputInterface<rmcs_msgs::GameStage> game_stage_;
+
+    // InputInterface<std::pair<uint16_t, uint16_t>> auto_aim_target_;
+
     Crosshair crosshair_;
     StatusRing status_ring_;
 
     Line horizontal_center_guidelines_[2];
     Line vertical_center_guidelines_[2];
 
-    Float yaw_indicator_;
+    Float chassis_power_number_;
     Line yaw_indicator_guidelines_[2];
 
     Arc chassis_direction_indicator_, chassis_control_direction_indicator_;
 
-    Float chassis_voltage_indicator_, chassis_power_indicator_, chassis_control_power_limit_indicator_,
-        supercap_control_power_limit_indicator_;
-    Float chassis_wheel_velocity_indicators_[4];
+    Float chassis_control_power_limit_indicator_, supercap_control_power_limit_indicator_;
+
+    Integer time_reminder_;
 };
 
 } // namespace rmcs_referee::app::ui
