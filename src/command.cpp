@@ -3,6 +3,7 @@
 #include <rclcpp/node.hpp>
 #include <rmcs_executor/component.hpp>
 #include <serial/serial.h>
+#include <serial_interface.hpp>
 #include <serial_util/crc/dji_crc.hpp>
 
 #include "command/field.hpp"
@@ -44,7 +45,7 @@ public:
 
         using namespace std::chrono_literals;
         auto now     = std::chrono::steady_clock::now();
-        auto& serial = const_cast<serial::Serial&>(*serial_);
+        auto& serial = const_cast<rmcs_msgs::SerialInterface&>(*serial_);
 
         if (now < next_sent_)
             return;
@@ -78,18 +79,12 @@ public:
             sizeof(frame_.header) + sizeof(frame_.body.command_id) + data_length + sizeof(uint16_t);
         serial_util::dji_crc::append_crc16(&frame_, frame_size);
 
-        // std::stringstream ss;
-        // auto buffer = reinterpret_cast<uint8_t*>(&frame_);
-        // for (size_t i = 0; i < frame_size; ++i)
-        //     ss << std::hex << std::setfill('0') << std::setw(2) << (int)(buffer[i]) << " ";
-        // RCLCPP_INFO(get_logger(), "%zu: %s", frame_size, ss.str().c_str());
-
-        serial.write(reinterpret_cast<uint8_t*>(&frame_), frame_size);
+        serial.write(reinterpret_cast<std::byte*>(&frame_), frame_size);
         next_sent_ = now + (one_second / 3720 * frame_size);
     }
 
 private:
-    InputInterface<serial::Serial> serial_;
+    InputInterface<rmcs_msgs::SerialInterface> serial_;
     Frame frame_;
 
     Field empty_field_;

@@ -20,14 +20,7 @@ public:
     Status()
         : Node{get_component_name(), rclcpp::NodeOptions{}.automatically_declare_parameters_from_overrides(true)}
         , logger_(get_logger()) {
-
-        try {
-            register_output(
-                "/referee/serial", serial_, get_parameter("path").as_string(), 115200,
-                serial::Timeout::simpleTimeout(0));
-        } catch (serial::IOException& ex) {
-            RCLCPP_ERROR(logger_, "Unable to open serial port: %s", ex.what());
-        }
+        register_input("/referee/serial", serial_);
 
         register_output("/referee/game/stage", game_stage_, rmcs_msgs::GameStage::UNKNOWN);
 
@@ -49,7 +42,7 @@ public:
             auto frame_size = sizeof(frame_.header) + sizeof(frame_.body.command_id)
                             + frame_.header.data_length + sizeof(uint16_t);
             cache_size_ += serial_->read(
-                reinterpret_cast<uint8_t*>(&frame_) + cache_size_, frame_size - cache_size_);
+                reinterpret_cast<std::byte*>(&frame_) + cache_size_, frame_size - cache_size_);
 
             if (cache_size_ == frame_size) {
                 cache_size_ = 0;
@@ -61,8 +54,8 @@ public:
             }
         } else {
             auto result = serial_util::receive_package(
-                *serial_, frame_.header, cache_size_, static_cast<uint8_t>(0xa5),
-                [](const FrameHeader& header) {
+                const_cast<rmcs_msgs::SerialInterface&>(*serial_), frame_.header, cache_size_,
+                static_cast<uint8_t>(0xa5), [](const FrameHeader& header) {
                     return serial_util::dji_crc::verify_crc8(header);
                 });
             if (result == serial_util::ReceiveResult::HEADER_INVALID) {
@@ -166,7 +159,7 @@ private:
 
     rclcpp::Logger logger_;
 
-    OutputInterface<serial::Serial> serial_;
+    InputInterface<rmcs_msgs::SerialInterface> serial_;
     Frame frame_;
     size_t cache_size_ = 0;
 
